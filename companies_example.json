@@ -1,0 +1,39 @@
+[
+  {
+    "company_id": 1,
+    "name": "HubSpot",
+    "ats": "greenhouse",
+    "access": { "board_token": "hubspotjobs" }
+  },
+  {
+    "company_id": 2,
+    "name": "Snowflake",
+    "ats": "ashby",
+    "access": { "board_name": "snowflake" }
+  },
+  {
+    "company_id": 2,
+    "name": "ServiceNow",
+    "ats": "smartrecruiters",
+    "access": { "company_identifier": "ServiceNow" }
+  },
+  {
+    "company_id": 4,
+    "name": "Gartner",
+    "ats": "workday",
+    "access": {
+      "portal": "https://gartner.wd5.myworkdayjobs.com/wday/cxs/gartner/EXT/jobs"
+    }
+  },
+  {
+    "company_id": 5,
+    "name": "Oracle",
+    "ats": "oracle",
+    "access": {
+      "host": "eeho.fa.us2.oraclecloud.com",
+      "site": "CX_45001",
+      "location_id": "300000000149325",
+      "posted_within_days": 30
+    }
+  }
+]

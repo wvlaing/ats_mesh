@@ -1,0 +1,23 @@
+{
+  "us_only": true,
+  "remove_locations": ["Tbilisi, Georgia"],
+  "exclude_title_words": [
+    "Part Time",
+    "Part-Time",
+    "20 Hours",
+    "30 Hours",
+    "Contract",
+    "Shift",
+    "2027",
+    "2028",
+    "Intern",
+    "Undergrad",
+    "PhD",
+    "Bilingual",
+    "Spanish",
+    "French",
+    "Japanese",
+    "Mandarin",
+    "Chinese"
+  ]
+}

@@ -1,0 +1,17 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Virtual environments
+.venv/
+
+# Local files
+/companies.json
+/filters.json
+/data/jobs.db
+/src/ats_mesh/adapters/bespoke/
+/src/ats_mesh/adapters/hosted/
