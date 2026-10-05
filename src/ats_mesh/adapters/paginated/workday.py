@@ -87,4 +87,8 @@ class Workday:
         )
 
     async def fetch_jobs(self, client):
-        return [self.parse(r) for r in await self.fetch_list(client)]
+        return [
+            self.parse(r)
+            for r in await self.fetch_list(client)
+            if r.get("externalPath")
+        ]
