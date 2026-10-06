@@ -1,6 +1,6 @@
 # Python-generated files
 __pycache__/
-.DS_store
+.DS_Store
 *.py[oc]
 build/
 dist/
@@ -13,5 +13,5 @@ wheels/
 # Local files
 /companies.json
 /filters.json
-/data/jobs.db
+/data/
 /src/ats_mesh/adapters/hosted/
