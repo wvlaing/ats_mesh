@@ -1,0 +1,309 @@
+[
+  {
+    "company_id": 1,
+    "name": "Stripe",
+    "ats": "greenhouse",
+    "access": { "board_token": "stripe" }
+  },
+  {
+    "company_id": 2,
+    "name": "Ramp",
+    "ats": "ashby",
+    "access": { "board_name": "ramp" }
+  },
+  {
+    "company_id": 3,
+    "name": "ServiceNow",
+    "ats": "smartrecruiters",
+    "access": { "company_identifier": "ServiceNow" }
+  },
+  {
+    "company_id": 4,
+    "name": "Block",
+    "ats": "greenhouse",
+    "access": { "board_token": "block" }
+  },
+  {
+    "company_id": 5,
+    "name": "Brex",
+    "ats": "greenhouse",
+    "access": { "board_token": "brex" }
+  },
+  {
+    "company_id": 6,
+    "name": "Marqeta",
+    "ats": "ashby",
+    "access": { "board_name": "marqeta-inc" }
+  },
+  {
+    "company_id": 7,
+    "name": "CrowdStrike",
+    "ats": "workday",
+    "access": {
+      "portal": "https://crowdstrike.wd5.myworkdayjobs.com/wday/cxs/crowdstrike/crowdstrikecareers/jobs"
+    }
+  },
+  {
+    "company_id": 8,
+    "name": "BlackLine",
+    "ats": "workday",
+    "access": {
+      "portal": "https://blackline.wd108.myworkdayjobs.com/wday/cxs/blackline/BlackLineCareers/jobs"
+    }
+  },
+  {
+    "company_id": 9,
+    "name": "Gartner",
+    "ats": "workday",
+    "access": {
+      "portal": "https://gartner.wd5.myworkdayjobs.com/wday/cxs/gartner/EXT/jobs"
+    }
+  },
+  {
+    "company_id": 10,
+    "name": "Datadog",
+    "ats": "greenhouse",
+    "access": {
+      "board_token": "datadog"
+    }
+  },
+  {
+    "company_id": 11,
+    "name": "1Password",
+    "ats": "ashby",
+    "access": { "board_name": "1password" }
+  },
+  {
+    "company_id": 12,
+    "name": "Visa",
+    "ats": "workday",
+    "access": {
+      "portal": "https://visa.wd5.myworkdayjobs.com/wday/cxs/visa/Visa/jobs"
+    }
+  },
+  {
+    "company_id": 13,
+    "name": "Cohesity",
+    "ats": "workday",
+    "access": {
+      "portal": "https://cohesity.wd5.myworkdayjobs.com/wday/cxs/cohesity/Cohesity_Careers/jobs"
+    }
+  },
+  {
+    "company_id": 14,
+    "name": "Snowflake",
+    "ats": "ashby",
+    "access": { "board_name": "snowflake" }
+  },
+  {
+    "company_id": 15,
+    "name": "Adyen",
+    "ats": "greenhouse",
+    "access": { "board_token": "adyen" }
+  },
+  {
+    "company_id": 16,
+    "name": "Plaid",
+    "ats": "ashby",
+    "access": { "board_name": "plaid" }
+  },
+  {
+    "company_id": 16,
+    "name": "Databricks",
+    "ats": "greenhouse",
+    "access": { "board_token": "databricks" }
+  },
+  {
+    "company_id": 17,
+    "name": "HubSpot",
+    "ats": "greenhouse broken 10-6",
+    "access": { "board_token": "hubspotjobs" }
+  },
+  {
+    "company_id": 18,
+    "name": "PWC",
+    "ats": "workday",
+    "access": {
+      "portal": "https://pwc.wd3.myworkdayjobs.com/wday/cxs/pwc/US_Experienced_Careers/jobs"
+    }
+  },
+  {
+    "company_id": 19,
+    "name": "JPMorgan Chase",
+    "ats": "oracle",
+    "access": {
+      "host": "jpmc.fa.oraclecloud.com",
+      "site": "CX_1001",
+      "location_id": "300000000289738",
+      "posted_within_days": 30
+    }
+  },
+  {
+    "company_id": 20,
+    "name": "Oracle",
+    "ats": "oracle",
+    "access": {
+      "host": "eeho.fa.us2.oraclecloud.com",
+      "site": "CX_45001",
+      "location_id": "300000000149325",
+      "posted_within_days": 30
+    }
+  },
+  {
+    "company_id": 21,
+    "name": "Atlassian",
+    "ats": "atlassian",
+    "access": {
+      "portal": "https://www.atlassian.com/endpoint/careers/listings"
+    }
+  },
+  {
+    "company_id": 22,
+    "name": "Broadcom",
+    "ats": "workday",
+    "access": {
+      "portal": "https://broadcom.wd1.myworkdayjobs.com/wday/cxs/broadcom/External_Career/jobs"
+    }
+  },
+  {
+    "company_id": 23,
+    "name": "Salesforce",
+    "ats": "workday",
+    "access": {
+      "portal": "https://salesforce.wd12.myworkdayjobs.com/wday/cxs/salesforce/External_Career_Site/jobs"
+    }
+  },
+  {
+    "company_id": 24,
+    "name": "Slack",
+    "ats": "workday",
+    "access": {
+      "portal": "https://salesforce.wd12.myworkdayjobs.com/wday/cxs/salesforce/Slack/jobs"
+    }
+  },
+  {
+    "company_id": 25,
+    "name": "notion",
+    "ats": "ashby",
+    "access": { "board_name": "notion" }
+  },
+  {
+    "company_id": 26,
+    "name": "Canva",
+    "ats": "smartrecruiters",
+    "access": { "company_identifier": "Canva" }
+  },
+  {
+    "company_id": 27,
+    "name": "Zscaler",
+    "ats": "greenhouse",
+    "access": { "board_token": "zscaler" }
+  },
+  {
+    "company_id": 28,
+    "name": "Rubrik",
+    "ats": "greenhouse",
+    "access": { "board_token": "rubrik" }
+  },
+  {
+    "company_id": 29,
+    "name": "Twilio",
+    "ats": "greenhouse",
+    "access": { "board_token": "twilio" }
+  },
+  {
+    "company_id": 30,
+    "name": "Zillow",
+    "ats": "workday",
+    "access": {
+      "portal": "https://zillow.wd5.myworkdayjobs.com/wday/cxs/zillow/Zillow_Group_External/jobs"
+    }
+  },
+  {
+    "company_id": 31,
+    "name": "Mastercard",
+    "ats": "workday",
+    "access": {
+      "portal": "https://mastercard.wd1.myworkdayjobs.com/wday/cxs/mastercard/CorporateCareers/jobs"
+    }
+  },
+  {
+    "company_id": 32,
+    "name": "SoFi",
+    "ats": "greenhouse",
+    "access": { "board_token": "sofitechsolutions" }
+  },
+  {
+    "company_id": 33,
+    "name": "AutoDesk",
+    "ats": "workday",
+    "access": {
+      "portal": "https://autodesk.wd1.myworkdayjobs.com/wday/cxs/autodesk/Ext/jobs"
+    }
+  },
+  {
+    "company_id": 34,
+    "name": "GitLab",
+    "ats": "greenhouse",
+    "access": { "board_token": "gitlab" }
+  },
+  {
+    "company_id": 35,
+    "name": "Zapier",
+    "ats": "ashby",
+    "access": { "board_name": "zapier" }
+  },
+  {
+    "company_id": 36,
+    "name": "Cloudflare",
+    "ats": "greenhouse",
+    "access": { "board_token": "cloudflare" }
+  },
+  {
+    "company_id": 37,
+    "name": "Elastic",
+    "ats": "greenhouse",
+    "access": { "board_token": "elastic" }
+  },
+  {
+    "company_id": 38,
+    "name": "Asana",
+    "ats": "greenhouse",
+    "access": { "board_token": "asana" }
+  },
+  {
+    "company_id": 39,
+    "name": "Five9",
+    "ats": "greenhouse",
+    "access": { "board_token": "five9" }
+  },
+  {
+    "company_id": 40,
+    "name": "Docusign",
+    "ats": "docusign",
+    "access": {
+      "portal": "https://careers.docusign.com/api/jobs",
+      "params": {
+        "page": 1,
+        "limit": 100,
+        "sortBy": "relevance",
+        "descending": "false",
+        "internal": "false"
+      }
+    }
+  },
+  {
+    "company_id": 41,
+    "name": "IBM",
+    "ats": "ibm",
+    "access": {
+      "country": "United States"
+    }
+  },
+  {
+    "company_id": 42,
+    "name": "Apple",
+    "ats": "apple",
+    "access": {}
+  }
+]

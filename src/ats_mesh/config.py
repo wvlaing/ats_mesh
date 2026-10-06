@@ -4,8 +4,8 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "data" / "jobs.db"
-COMPANIES_FILE = PROJECT_ROOT / "companies.json"
-FILTERS_FILE = PROJECT_ROOT / "filters.json"
+COMPANIES_FILE = PROJECT_ROOT / "settings/companies.json"
+FILTERS_FILE = PROJECT_ROOT / "settings/filters.json"
 JOBS_FILE = Path.home() / "Desktop" / "jobs.json"
 XLSX_FILE = Path.home() / "Desktop" / "jobs.xlsx"
 
