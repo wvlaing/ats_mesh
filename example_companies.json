@@ -27,13 +27,31 @@
   },
   {
     "company_id": 5,
-    "name": "Oracle",
-    "ats": "oracle",
+    "name": "Docusign",
+    "ats": "docusign",
     "access": {
-      "host": "eeho.fa.us2.oraclecloud.com",
-      "site": "CX_45001",
-      "location_id": "300000000149325",
-      "posted_within_days": 30
+      "portal": "https://careers.docusign.com/api/jobs",
+      "params": {
+        "page": 1,
+        "limit": 100,
+        "sortBy": "relevance",
+        "descending": "false",
+        "internal": "false"
+      }
     }
+  },
+  {
+    "company_id": 6,
+    "name": "IBM",
+    "ats": "ibm",
+    "access": {
+      "country": "United States"
+    }
+  },
+  {
+    "company_id": 7,
+    "name": "Apple",
+    "ats": "apple",
+    "access": {}
   }
 ]
