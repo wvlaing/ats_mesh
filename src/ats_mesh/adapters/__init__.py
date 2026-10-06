@@ -1,6 +1,8 @@
 # ~/src/ats_mesh/adapters/__init__.py
 
-from ats_mesh.adapters.hosted.icims import ICIMS
+from ats_mesh.adapters.bespoke.atlassian import Atlassian
+from ats_mesh.adapters.bespoke.docusign import Docusign
+from ats_mesh.adapters.bespoke.ibm import IBM
 from ats_mesh.adapters.paginated.oracle import Oracle
 from ats_mesh.adapters.paginated.workday import Workday
 from ats_mesh.adapters.standard.ashby import Ashby
@@ -13,5 +15,7 @@ ADAPTERS = {
     "workday": Workday,
     "oracle": Oracle,
     "smartrecruiters": SmartRecruiters,
-    "icims": ICIMS,
+    "atlassian": Atlassian,
+    "docusign": Docusign,
+    "ibm": IBM,
 }

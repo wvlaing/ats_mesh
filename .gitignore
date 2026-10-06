@@ -13,5 +13,4 @@ wheels/
 /companies.json
 /filters.json
 /data/jobs.db
-/src/ats_mesh/adapters/bespoke/
 /src/ats_mesh/adapters/hosted/
