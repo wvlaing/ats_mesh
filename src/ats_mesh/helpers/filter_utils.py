@@ -104,28 +104,69 @@ NON_US_PLACES = NON_US_COUNTRIES + NON_US_OTHER
 # ------------------------------------------------------------------- config
 
 
+# Keys a company's block in filters.json may use (anything else is flagged).
+COMPANY_KEYS = {
+    "us_only",
+    "remove_locations",
+    "exclude_title_words",
+    "allow_title_words",
+}
+
+
 @dataclass
 class Config:
+    """filters.json has two parts. "global_filters" is everything below except
+    `companies`, and applies to every job. "company_filters" is `companies`, one
+    block per company name; a company without a block just gets the global filters."""
+
     us_only: bool = True
     # Exact location strings (or one place inside a location) to always delete,
     # e.g. "Tbilisi, Georgia". Case/spacing doesn't matter.
     remove_locations: list[str] = field(default_factory=list)
-    # Not used yet. Fill in filters.json to drop jobs with these words in the title.
+    # Jobs with any of these words in the title are dropped.
     exclude_title_words: list[str] = field(default_factory=list)
+    # Company-specific blocks, keyed by normalized company name.
+    companies: dict = field(default_factory=dict)
 
     @property
     def manual(self):
         return {_norm(x) for x in self.remove_locations}
+
+    def for_company(self, name):
+        """The global filters with this company's block applied, if it has one:
+        us_only overrides the global value, remove_locations and exclude_title_words
+        add to the global lists, and allow_title_words exempts global title words."""
+        extra = self.companies.get(_norm(name))
+        if not extra:
+            return self
+        allow = {_norm(w) for w in extra.get("allow_title_words", [])}
+        return Config(
+            us_only=bool(extra.get("us_only", self.us_only)),
+            remove_locations=self.remove_locations + extra.get("remove_locations", []),
+            exclude_title_words=[
+                w for w in self.exclude_title_words if _norm(w) not in allow
+            ]
+            + extra.get("exclude_title_words", []),
+        )
 
 
 def load_config():
     if not FILTERS_FILE.exists():
         return Config()
     data = json.loads(FILTERS_FILE.read_text(encoding="utf-8"))
+    glob = data.get("global_filters", data)  # a flat file from before the split works
+    companies = {
+        _norm(name): block or {}
+        for name, block in (data.get("company_filters") or {}).items()
+    }
+    for name, block in companies.items():
+        for key in block.keys() - COMPANY_KEYS:
+            print(f"filters.json: {name!r} has an unknown key {key!r}, ignored")
     return Config(
-        us_only=bool(data.get("us_only", True)),
-        remove_locations=list(data.get("remove_locations") or []),
-        exclude_title_words=list(data.get("exclude_title_words") or []),
+        us_only=bool(glob.get("us_only", True)),
+        remove_locations=list(glob.get("remove_locations") or []),
+        exclude_title_words=list(glob.get("exclude_title_words") or []),
+        companies=companies,
     )
 
 
@@ -293,12 +334,19 @@ FILTERS = [
 
 
 def apply_filters(rows, cfg):
-    """Sets row["reason"] on every row (None = kept). Returns {label: number dropped}."""
+    """Sets row["reason"] on every row (None = kept). Returns {label: number dropped}.
+    Each row is judged by the global filters plus its own company's block, if any."""
+    for name in cfg.companies.keys() - {_norm(r["company_name"]) for r in rows}:
+        print(f"filters.json: no jobs from company {name!r} (check company_filters)")
     dropped = {label: 0 for label, _ in FILTERS}
+    per_company = {}
     for row in rows:
+        name = row["company_name"]
+        if name not in per_company:
+            per_company[name] = cfg.for_company(name)
         row["reason"] = None
         for label, f in FILTERS:
-            if f(row, cfg):
+            if f(row, per_company[name]):
                 row["reason"] = label
                 dropped[label] += 1
                 break

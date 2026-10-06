@@ -1,0 +1,34 @@
+{
+  "global_filters": {
+    "us_only": true,
+    "remove_locations": ["Tbilisi, Georgia"],
+    "exclude_title_words": [
+      "Part Time",
+      "Part-Time",
+      "20 Hours",
+      "30 Hours",
+      "Contract",
+      "Shift",
+      "2027",
+      "2028",
+      "Intern",
+      "Undergrad",
+      "PhD",
+      "Bilingual",
+      "Spanish",
+      "French",
+      "Japanese",
+      "Mandarin",
+      "Chinese"
+    ]
+  },
+  "company_filters": {
+    "JPMorgan Chase": {
+      "exclude_title_words": ["AML", "KYC"]
+    },
+    "Apple": {
+      "allow_title_words": ["Contract"],
+      "remove_locations": ["Cupertino, United States"]
+    }
+  }
+}
