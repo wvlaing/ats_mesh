@@ -1,5 +1,6 @@
 # Python-generated files
 __pycache__/
+.DR_store
 *.py[oc]
 build/
 dist/

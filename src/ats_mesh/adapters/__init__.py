@@ -1,5 +1,6 @@
 # ~/src/ats_mesh/adapters/__init__.py
 
+from ats_mesh.adapters.bespoke.apple import Apple
 from ats_mesh.adapters.bespoke.atlassian import Atlassian
 from ats_mesh.adapters.bespoke.docusign import Docusign
 from ats_mesh.adapters.bespoke.ibm import IBM
@@ -18,4 +19,5 @@ ADAPTERS = {
     "atlassian": Atlassian,
     "docusign": Docusign,
     "ibm": IBM,
+    "apple": Apple,
 }
