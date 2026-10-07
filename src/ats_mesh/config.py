@@ -10,7 +10,7 @@ JOBS_FILE = Path.home() / "Desktop" / "jobs.json"
 XLSX_FILE = Path.home() / "Desktop" / "jobs.xlsx"
 
 # Older jobs are dropped off report Age = days since posted (or oldest confirmed date)
-MAX_AGE_DAYS = 30
+MAX_AGE_DAYS = 7
 
 RAW_FILE = Path.home() / "Desktop" / "jobs_raw.json"
 
