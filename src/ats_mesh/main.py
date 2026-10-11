@@ -9,7 +9,6 @@ from ats_mesh import db
 from ats_mesh.adapters import ADAPTERS
 from ats_mesh.config import (
     COMPANIES_FILE,
-    JOBS_FILE,
     RAW_FILE,
     WRITE_RAW_JSON,
     XLSX_FILE,

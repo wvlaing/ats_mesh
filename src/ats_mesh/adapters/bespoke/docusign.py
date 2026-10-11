@@ -48,7 +48,7 @@ class Docusign:
             company_name=self.company["name"],
             ats_job_id=str(d["req_id"]),
             title=d["title"].strip(),
-            url=d.get("canonical_url") or d.get("apply_url"),
+            url=d.get("meta_data", {}).get("canonical_url"),
             locations=split_locations(d.get("full_location")),
             posted=fmt_date(to_utc(d.get("posted_date"))),
         )
