@@ -14,7 +14,8 @@ def keep(places):
 
 
 class Atlassian:
-    """One GET returns a plain list of every job (iCIMS behind the scenes)."""
+    """One GET returns a plain list of every job (iCIMS behind the scenes), so
+    there is nothing to save by stopping early. Known ids are just filtered out."""
 
     def __init__(self, company):
         self.company = company
@@ -39,6 +40,6 @@ class Atlassian:
             or None,  # edit date, closest thing they give
         )
 
-    async def fetch_jobs(self, client):
+    async def fetch_jobs(self, client, known=frozenset()):
         jobs = [self.parse(r) for r in await self.fetch_list(client)]
-        return [j for j in jobs if keep(j.locations)]
+        return [j for j in jobs if keep(j.locations) and j.ats_job_id not in known]

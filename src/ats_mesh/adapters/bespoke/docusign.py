@@ -18,7 +18,9 @@ PARAMS = {
 
 
 class Docusign:
-    """Paged GET returns {"jobs": [{"data": {...}}], "totalCount": N}."""
+    """Paged GET returns {"jobs": [{"data": {...}}], "totalCount": N}. Sorted by
+    relevance, not date, so a page of known jobs says nothing about the pages
+    after it: it always reads every page and only filters out known ids."""
 
     def __init__(self, company):
         self.company = company
@@ -53,5 +55,6 @@ class Docusign:
             posted=fmt_date(to_utc(d.get("posted_date"))),
         )
 
-    async def fetch_jobs(self, client):
-        return [self.parse(r) for r in await self.fetch_list(client)]
+    async def fetch_jobs(self, client, known=frozenset()):
+        jobs = [self.parse(r) for r in await self.fetch_list(client)]
+        return [j for j in jobs if j.ats_job_id not in known]

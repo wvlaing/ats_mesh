@@ -7,6 +7,7 @@ import random
 
 import httpx
 
+from ats_mesh.helpers.http_utils import Streak
 from ats_mesh.helpers.time_utils import fmt_date, to_utc
 from ats_mesh.models import JobBasic
 
@@ -53,6 +54,11 @@ def row_key(raw):
     return raw.get("positionId") or raw.get("id")
 
 
+def ids(results):
+    """Row ids as strings, the same form stored as ats_job_id."""
+    return [str(k) for r in results if (k := row_key(r))]
+
+
 def add(rows, results):
     for raw in results:
         if key := row_key(raw):
@@ -82,10 +88,14 @@ def posted(raw):
 
 
 class Apple:
-    """POST /api/v1/search, 20 jobs a page. Roughly 1 request in 5 comes back 200
-    with an empty page, so every page runs its own short session (like the site,
-    which fetches a CSRF token for each search) and retries on empties. That is
-    why the shared client from main.py goes unused here."""
+    """POST /api/v1/search, 20 jobs a page, newest first. Roughly 1 request in 5
+    comes back 200 with an empty page, so every page runs its own short session
+    (like the site, which fetches a CSRF token for each search) and retries on
+    empties. That is why the shared client from main.py goes unused here.
+
+    Pages are fetched a few at a time, in order. The crawl stops once a few pages
+    in a row hold nothing outside `known` (see Streak). An empty page never counts
+    toward that, since it says nothing about what is on it."""
 
     def __init__(self, company):
         self.company = company
@@ -145,7 +155,7 @@ class Apple:
                     elif step == "token":
                         token = await self._token(client)
                     res = await self._search(client, token, page)
-                except (httpx.HTTPError, ValueError):
+                except httpx.HTTPError, ValueError:
                     res = {}
                 if res.get("searchResults"):
                     return res
@@ -154,8 +164,11 @@ class Apple:
             if client is not None:
                 await client.aclose()
 
-    async def _crawl(self, pages, rows):
-        """Fetches pages a few at a time into rows. Returns the pages that gave up."""
+    async def _crawl(self, pages, rows, streak=None):
+        """Fetches pages a few at a time into rows, one batch after the next so the
+        streak sees them in order. With a streak it stops once enough pages in a
+        row held nothing new. Returns (pages that gave up, stopped early)."""
+        pages = list(pages)
         sem = asyncio.Semaphore(CONCURRENCY)
 
         async def one(page):
@@ -165,14 +178,20 @@ class Apple:
                 return page, res.get("searchResults") or []
 
         failed = []
-        for page, results in await asyncio.gather(*(one(p) for p in pages)):
-            if results:
+        for i in range(0, len(pages), CONCURRENCY):
+            batch = await asyncio.gather(*(one(p) for p in pages[i : i + CONCURRENCY]))
+            for page, results in batch:
+                if not results:
+                    failed.append(page)
+                    continue
                 add(rows, results)
-            else:
-                failed.append(page)
-        return failed
+                if streak:
+                    streak.add(ids(results))
+            if streak and streak.done:
+                return failed, True
+        return failed, False
 
-    async def fetch_list(self):
+    async def fetch_list(self, known=frozenset()):
         first = await self._page(1)
         results = first.get("searchResults") or []
         if not results:
@@ -182,18 +201,25 @@ class Apple:
         rows = {}
         add(rows, results)
 
-        missing = await self._crawl(range(2, math.ceil(total / per_page) + 1), rows)
+        streak = Streak(known)
+        streak.add(ids(results))
+        missing, stopped = [], streak.done
+        if not stopped:
+            missing, stopped = await self._crawl(
+                range(2, math.ceil(total / per_page) + 1), rows, streak
+            )
         if missing:  # one more go at the pages that gave up, after a pause
             await asyncio.sleep(5)
-            missing = await self._crawl(missing, rows)
+            missing, _ = await self._crawl(missing, rows)
 
-        # Newest first, so anything posted while we were paging is on page 1. If the
-        # total moved, every page after it shifted while we read it: sweep once more.
+        # Newest first, so anything posted while we were paging is on page 1. If a
+        # full crawl saw the total move, every page after it shifted while we read
+        # it: sweep once more. A crawl that stopped early never reached those pages.
         latest = await self._page(1)
         add(rows, latest.get("searchResults") or [])
         new_total = latest.get("totalRecords") or total
-        if new_total != total:
-            missing = await self._crawl(
+        if new_total != total and not stopped:
+            missing, _ = await self._crawl(
                 range(2, math.ceil(new_total / per_page) + 1), rows
             )
         if missing:
@@ -214,5 +240,6 @@ class Apple:
             posted=posted(raw),
         )
 
-    async def fetch_jobs(self, _client):
-        return [self.parse(r) for r in await self.fetch_list()]
+    async def fetch_jobs(self, _client, known=frozenset()):
+        rows = await self.fetch_list(known)
+        return [self.parse(r) for r in rows if str(row_key(r)) not in known]
