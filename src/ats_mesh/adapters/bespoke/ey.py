@@ -3,9 +3,10 @@
 import asyncio
 import html as htmllib
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 
 from ats_mesh.helpers.http_utils import Streak, get_with_retry
+from ats_mesh.helpers.time_utils import cutoff_date
 from ats_mesh.models import JobBasic
 
 BASE = "https://careers.ey.com"
@@ -19,7 +20,7 @@ PARAMS = {
     "location": "US",
 }
 PAGE_SIZE = 25  # the site's fixed page size, startrow steps by this
-CONCURRENCY = 6  # detail pages in flight at once, 683 pages took about 100s
+CONCURRENCY = 6  # detail pages in flight at once, also the size of each chunk
 MAX_PAGES = 60  # safety stop, the list ends on an empty page well before this
 
 ID_RE = re.compile(r"/(\d+)/?$")
@@ -52,11 +53,12 @@ def parse_rows(page):
 
 
 def parse_posted(value):
-    """'Sun Sep 13 00:00:00 UTC 2026' -> '2026-09-13'"""
+    """Return the detail page's posted date as YYYY-MM-DD, or None."""
     try:
-        return datetime.strptime(value, "%a %b %d %H:%M:%S UTC %Y").date().isoformat()  # noqa: DTZ007
+        parsed = datetime.strptime(value, "%a %b %d %H:%M:%S UTC %Y")  # noqa: DTZ007
     except ValueError:
         return None
+    return parsed.replace(tzinfo=UTC).date().isoformat()
 
 
 def parse_detail(page):
@@ -83,10 +85,14 @@ def parse_detail(page):
 
 class Ey:
     """SuccessFactors, server-rendered HTML. The list (25 a page, startrow paging,
-    newest first) has only the title and id. The detail page has every location
-    and the posted date as schema.org meta tags, so each new job costs one extra
-    GET. Known ids are never fetched twice: the list walk stops after a few pages
-    with nothing new, and details are only fetched for ids not in `known`."""
+    newest first) has only the title and id. The detail page is the only place with
+    the posted date and every location, so each job we look at costs one GET.
+
+    To keep that small the list is walked page by page and details are fetched only
+    for ids not in `known`, a few at a time. The walk stops when either a few pages
+    in a row hold nothing new (see Streak) or a detail shows a job older than the
+    cutoff (max age plus a week), since everything after it is older still. Jobs
+    past the cutoff are dropped, not stored."""
 
     def __init__(self, company):
         self.company = company
@@ -97,30 +103,11 @@ class Ey:
         )
         return r.text
 
-    async def fetch_list(self, client, known):
-        streak = Streak(known)
-        rows = []
-        for p in range(MAX_PAGES):
-            try:
-                got = parse_rows(await self._list_page(client, p))
-            except Exception:
-                if p == 0:
-                    raise  # nothing to work with, let the run report it
-                break  # keep what we have, the rest comes next run
-            if not got:
-                break
-            rows += got
-            streak.add([r["id"] for r in got])
-            if streak.done:
-                break
-        return rows
-
-    async def _detail(self, client, sem, row):
-        async with sem:
-            try:
-                r = await get_with_retry(client, BASE + row["path"])
-            except Exception:
-                return None  # not returned, so it isn't known and gets retried next run
+    async def _detail(self, client, row):
+        try:
+            r = await get_with_retry(client, BASE + row["path"])
+        except Exception:
+            return None  # not returned, so it isn't known and gets retried next run
         return row, *parse_detail(r.text)
 
     def parse(self, row, places, posted):
@@ -136,8 +123,38 @@ class Ey:
         )
 
     async def fetch_jobs(self, client, known=frozenset()):
-        rows = {r["id"]: r for r in await self.fetch_list(client, known)}
-        todo = [r for i, r in rows.items() if i not in known]
-        sem = asyncio.Semaphore(CONCURRENCY)
-        details = await asyncio.gather(*(self._detail(client, sem, r) for r in todo))
-        return [self.parse(*d) for d in details if d]
+        oldest = cutoff_date().isoformat()  # ISO dates compare correctly as text
+        streak = Streak(known)
+        seen, jobs = set(), []
+        for p in range(MAX_PAGES):
+            try:
+                rows = parse_rows(await self._list_page(client, p))
+            except Exception:
+                if p == 0:
+                    raise  # nothing to work with, let the run report it
+                break  # keep what we have, the rest comes next run
+            if not rows:
+                break
+            streak.add([r["id"] for r in rows])
+
+            todo = [r for r in rows if r["id"] not in known and r["id"] not in seen]
+            seen.update(r["id"] for r in todo)
+            for i in range(0, len(todo), CONCURRENCY):
+                got = await asyncio.gather(
+                    *(self._detail(client, r) for r in todo[i : i + CONCURRENCY])
+                )
+                too_old = False
+                for d in got:
+                    if not d:
+                        continue
+                    row, places, posted = d
+                    if posted and posted < oldest:
+                        too_old = True
+                    else:
+                        jobs.append(self.parse(row, places, posted))
+                if too_old:
+                    return jobs  # newest first, so nothing after this is in range
+
+            if streak.done:
+                break
+        return jobs

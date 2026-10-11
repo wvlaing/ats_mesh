@@ -1,9 +1,12 @@
 # ~/src/ats_mesh/helpers/time_utils.py
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from ats_mesh.config import MAX_AGE_DAYS
+
 EASTERN = ZoneInfo("America/New_York")
+BUFFER_DAYS = 7  # extra week on top of the max age, always
 
 
 def now_utc():
@@ -41,3 +44,8 @@ def date_to_utc(value):
     day = datetime.fromisoformat(value).date()
     local = datetime(day.year, day.month, day.day, tzinfo=EASTERN)
     return local.astimezone(UTC).isoformat()
+
+
+def cutoff_date():
+    """Oldest posted date worth keeping: the max age plus a week of buffer."""
+    return date.today() - timedelta(days=MAX_AGE_DAYS + BUFFER_DAYS)  # noqa: DTZ011
