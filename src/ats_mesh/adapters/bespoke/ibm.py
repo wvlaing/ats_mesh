@@ -67,7 +67,7 @@ class IBM:
             title=src["title"].strip(),
             url=url,
             locations=[place] if place else [],
-            posted=None,  # the search results carry no date
+            posted=None,  # the search results don't exposed date, this requires looking at the actual job.
         )
 
     async def fetch_jobs(self, client):
