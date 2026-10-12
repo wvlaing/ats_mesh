@@ -20,7 +20,7 @@ PARAMS = {
     "location": "US",
 }
 PAGE_SIZE = 25  # the site's fixed page size, startrow steps by this
-CONCURRENCY = 6  # detail pages in flight at once
+CONCURRENCY = 25  # detail pages in flight at once
 DETAIL_RETRIES = 2  # a stuck detail page gets skipped, it is retried next run
 DETAIL_TIMEOUT = 15  # seconds, instead of the client's 30
 MAX_PAGES = 60  # safety stop, the list ends on an empty page well before this
