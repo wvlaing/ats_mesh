@@ -30,7 +30,6 @@ class Greenhouse:
     def parse(self, raw):
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=str(raw["id"]),
             title=raw["title"].strip(),
@@ -39,5 +38,5 @@ class Greenhouse:
             posted=fmt_date(to_utc(raw.get("first_published"))),
         )
 
-    async def fetch_jobs(self, client):
+    async def fetch_jobs(self, client, _known=frozenset()):
         return [self.parse(r) for r in await self.fetch_list(client)]

@@ -76,7 +76,6 @@ class IBM:
         place = src.get("field_keyword_19")
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=job_id(raw),
             title=src["title"].strip(),

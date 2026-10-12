@@ -46,7 +46,6 @@ class Docusign:
         d = raw["data"]
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=str(d["req_id"]),
             title=d["title"].strip(),

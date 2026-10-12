@@ -77,7 +77,6 @@ class Workday:
         path = raw["externalPath"]
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=(raw.get("bulletFields") or [path])[0],
             title=raw["title"].strip(),
@@ -86,7 +85,7 @@ class Workday:
             posted=posted_date(raw.get("postedOn")),
         )
 
-    async def fetch_jobs(self, client):
+    async def fetch_jobs(self, client, _known=frozenset()):
         return [
             self.parse(r)
             for r in await self.fetch_list(client)

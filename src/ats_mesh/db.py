@@ -1,6 +1,7 @@
 # ~/src/ats_mesh/db.py
 
 import json
+import shutil
 import sqlite3
 
 from ats_mesh.config import DB_PATH
@@ -8,10 +9,9 @@ from ats_mesh.helpers.time_utils import fmt_eastern, now_utc
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
-    company_id   INTEGER NOT NULL,
+    company_name TEXT    NOT NULL,
     ats_job_id   TEXT    NOT NULL,
     ats          TEXT,
-    company_name TEXT,
     title        TEXT,
     url          TEXT,
     locations    TEXT,                  -- JSON list, as the ATS gave it
@@ -19,16 +19,48 @@ CREATE TABLE IF NOT EXISTS jobs (
     first_seen   TEXT,                  -- '2026-09-03 1330 EDT'
     reason       TEXT,                  -- which filter dropped it; NULL = kept
     shown        INTEGER NOT NULL DEFAULT 0,  -- 1 while the job is in the sheet
-    PRIMARY KEY (company_id, ats_job_id)
+    PRIMARY KEY (company_name, ats_job_id)
 )
 """
+
+
+def migrate_company_id(con):
+    """Older databases keyed jobs on (company_id, ats_job_id). Rebuild the table keyed
+    on (company_name, ats_job_id) instead, keeping every row. A copy of the database
+    is saved next to it first, as jobs.db.bak."""
+    columns = [row[1] for row in con.execute("PRAGMA table_info(jobs)")]
+    if "company_id" not in columns:
+        return
+    con.commit()
+    shutil.copy2(DB_PATH, DB_PATH.with_name(DB_PATH.name + ".bak"))
+    con.executescript(
+        "BEGIN;"
+        "ALTER TABLE jobs RENAME TO jobs_old;"
+        + SCHEMA
+        + ";INSERT OR IGNORE INTO jobs (company_name, ats_job_id, ats, title, url,"
+        " locations, posted, first_seen, reason, shown)"
+        " SELECT company_name, ats_job_id, ats, title, url, locations, posted,"
+        " first_seen, reason, shown FROM jobs_old;"
+        "DROP TABLE jobs_old;"
+        "COMMIT;"
+    )
 
 
 def connect():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(DB_PATH)
-    con.execute(SCHEMA)
+    con.execute(SCHEMA)  # does nothing if the table exists, even an old-shaped one
+    migrate_company_id(con)
     return con
+
+
+def known_ids(con):
+    """{company name: set of ats_job_ids ever pulled}, filtered out or not. Adapters
+    use it to skip jobs they've already got instead of re-fetching them."""
+    known = {}
+    for name, job_id in con.execute("SELECT company_name, ats_job_id FROM jobs"):
+        known.setdefault(name, set()).add(job_id)
+    return known
 
 
 def add_jobs(con, jobs):
@@ -38,14 +70,13 @@ def add_jobs(con, jobs):
     seen = fmt_eastern(now_utc())
     before = con.total_changes
     con.executemany(
-        "INSERT OR IGNORE INTO jobs (company_id, ats_job_id, ats, company_name, title,"
-        " url, locations, posted, first_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO jobs (company_name, ats_job_id, ats, title,"
+        " url, locations, posted, first_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
             (
-                j.company_id,
+                j.company_name,
                 j.ats_job_id,
                 j.ats,
-                j.company_name,
                 j.title,
                 j.url,
                 json.dumps(j.locations, ensure_ascii=False),
@@ -70,13 +101,13 @@ def all_jobs(con):
 
 def save_reasons(con, rows):
     con.executemany(
-        "UPDATE jobs SET reason = ? WHERE company_id = ? AND ats_job_id = ?",
-        [(r["reason"], r["company_id"], r["ats_job_id"]) for r in rows],
+        "UPDATE jobs SET reason = ? WHERE company_name = ? AND ats_job_id = ?",
+        [(r["reason"], r["company_name"], r["ats_job_id"]) for r in rows],
     )
 
 
 def set_shown(con, rows, value):
     con.executemany(
-        "UPDATE jobs SET shown = ? WHERE company_id = ? AND ats_job_id = ?",
-        [(value, r["company_id"], r["ats_job_id"]) for r in rows],
+        "UPDATE jobs SET shown = ? WHERE company_name = ? AND ats_job_id = ?",
+        [(value, r["company_name"], r["ats_job_id"]) for r in rows],
     )

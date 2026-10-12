@@ -231,7 +231,6 @@ class Apple:
         slug = raw.get("transformedPostingTitle")
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=job_id,
             title=(raw.get("postingTitle") or "").strip(),

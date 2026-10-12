@@ -30,7 +30,6 @@ class Atlassian:
         ]  # collapses their messy spacing
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=str(raw["id"]),
             title=raw["title"].strip(),

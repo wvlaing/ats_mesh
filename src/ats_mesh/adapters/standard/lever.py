@@ -28,7 +28,6 @@ class Lever:
 
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=str(raw["id"]),
             title=raw["text"].strip(),
@@ -37,7 +36,7 @@ class Lever:
             posted=created_dt.date().isoformat() if created_dt else None,
         )
 
-    async def fetch_jobs(self, client):
+    async def fetch_jobs(self, client, _known=frozenset()):
         return [
             self.parse(r)
             for r in await self.fetch_list(client)

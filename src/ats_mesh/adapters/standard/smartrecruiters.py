@@ -41,7 +41,6 @@ class SmartRecruiters:
         place = loc.get("fullLocation") or ", ".join(p for p in parts if p)
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=str(raw["id"]),
             title=raw["name"].strip(),
@@ -50,5 +49,5 @@ class SmartRecruiters:
             posted=fmt_date(to_utc(raw.get("releasedDate"))),
         )
 
-    async def fetch_jobs(self, client):
+    async def fetch_jobs(self, client, _known=frozenset()):
         return [self.parse(r) for r in await self.fetch_list(client)]

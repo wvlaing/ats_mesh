@@ -73,7 +73,6 @@ class Oracle:
         places += [place(s) for s in raw.get("secondaryLocations") or []]
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=job_id,
             title=raw["Title"].strip(),
@@ -82,5 +81,5 @@ class Oracle:
             posted=raw.get("PostedDate"),  # already a plain date
         )
 
-    async def fetch_jobs(self, client):
+    async def fetch_jobs(self, client, _known=frozenset()):
         return [self.parse(r) for r in await self.fetch_list(client)]

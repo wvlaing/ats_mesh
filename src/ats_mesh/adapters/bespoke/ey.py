@@ -20,7 +20,9 @@ PARAMS = {
     "location": "US",
 }
 PAGE_SIZE = 25  # the site's fixed page size, startrow steps by this
-CONCURRENCY = 6  # detail pages in flight at once, also the size of each chunk
+CONCURRENCY = 6  # detail pages in flight at once
+DETAIL_RETRIES = 2  # a stuck detail page gets skipped, it is retried next run
+DETAIL_TIMEOUT = 15  # seconds, instead of the client's 30
 MAX_PAGES = 60  # safety stop, the list ends on an empty page well before this
 
 ID_RE = re.compile(r"/(\d+)/?$")
@@ -89,10 +91,16 @@ class Ey:
     the posted date and every location, so each job we look at costs one GET.
 
     To keep that small the list is walked page by page and details are fetched only
-    for ids not in `known`, a few at a time. The walk stops when either a few pages
-    in a row hold nothing new (see Streak) or a detail shows a job older than the
-    cutoff (max age plus a week), since everything after it is older still. Jobs
-    past the cutoff are dropped, not stored."""
+    for ids not in `known`. The walk stops when either a few pages in a row hold
+    nothing new (see Streak) or a detail shows a job older than the cutoff (max age
+    plus a week), since everything after it is older still. Jobs past the cutoff
+    are dropped, not stored.
+
+    Speed: the next list page is requested while the current one's details are
+    still coming in. On each page the first unknown job is fetched alone, because
+    if it is already past the cutoff the rest of the page is too and nothing else
+    is fetched. Otherwise the rest of the page goes out at once, CONCURRENCY at a
+    time (a semaphore, so one slow page doesn't hold up the others)."""
 
     def __init__(self, company):
         self.company = company
@@ -103,17 +111,22 @@ class Ey:
         )
         return r.text
 
-    async def _detail(self, client, row):
-        try:
-            r = await get_with_retry(client, BASE + row["path"])
-        except Exception:
-            return None  # not returned, so it isn't known and gets retried next run
+    async def _detail(self, client, sem, row):
+        async with sem:
+            try:
+                r = await get_with_retry(
+                    client,
+                    BASE + row["path"],
+                    retries=DETAIL_RETRIES,
+                    timeout=DETAIL_TIMEOUT,
+                )
+            except Exception:
+                return None  # not returned, so it isn't known and gets retried next run
         return row, *parse_detail(r.text)
 
     def parse(self, row, places, posted):
         return JobBasic(
             ats=self.company["ats"],
-            company_id=self.company["company_id"],
             company_name=self.company["name"],
             ats_job_id=row["id"],
             title=row["title"],
@@ -122,39 +135,51 @@ class Ey:
             posted=posted,
         )
 
+    async def _details(self, client, sem, todo, oldest, jobs):
+        """Looks up `todo` (newest first) and appends the ones inside the cutoff to
+        `jobs`. Returns True once a job past the cutoff turns up."""
+        got = [await self._detail(client, sem, todo[0])]
+        if not (got[0] and got[0][2] and got[0][2] < oldest):
+            rest = (self._detail(client, sem, r) for r in todo[1:])
+            got += await asyncio.gather(*rest)
+        too_old = False
+        for d in got:
+            if not d:
+                continue
+            row, places, posted = d
+            if posted and posted < oldest:
+                too_old = True
+            else:
+                jobs.append(self.parse(row, places, posted))
+        return too_old
+
     async def fetch_jobs(self, client, known=frozenset()):
         oldest = cutoff_date().isoformat()  # ISO dates compare correctly as text
         streak = Streak(known)
+        sem = asyncio.Semaphore(CONCURRENCY)
         seen, jobs = set(), []
-        for p in range(MAX_PAGES):
-            try:
-                rows = parse_rows(await self._list_page(client, p))
-            except Exception:
-                if p == 0:
-                    raise  # nothing to work with, let the run report it
-                break  # keep what we have, the rest comes next run
-            if not rows:
-                break
-            streak.add([r["id"] for r in rows])
+        pending = asyncio.create_task(self._list_page(client, 0))
+        try:
+            for p in range(MAX_PAGES):
+                try:
+                    rows = parse_rows(await pending)
+                except Exception:
+                    if p == 0:
+                        raise  # nothing to work with, let the run report it
+                    break  # keep what we have, the rest comes next run
+                if not rows:
+                    break
+                pending = asyncio.create_task(self._list_page(client, p + 1))
+                streak.add([r["id"] for r in rows])
 
-            todo = [r for r in rows if r["id"] not in known and r["id"] not in seen]
-            seen.update(r["id"] for r in todo)
-            for i in range(0, len(todo), CONCURRENCY):
-                got = await asyncio.gather(
-                    *(self._detail(client, r) for r in todo[i : i + CONCURRENCY])
-                )
-                too_old = False
-                for d in got:
-                    if not d:
-                        continue
-                    row, places, posted = d
-                    if posted and posted < oldest:
-                        too_old = True
-                    else:
-                        jobs.append(self.parse(row, places, posted))
-                if too_old:
-                    return jobs  # newest first, so nothing after this is in range
-
-            if streak.done:
-                break
+                skip = known | seen
+                todo = [r for r in rows if r["id"] not in skip]
+                seen.update(r["id"] for r in todo)
+                if todo and await self._details(client, sem, todo, oldest, jobs):
+                    break  # newest first, so nothing after this is in range
+                if streak.done:
+                    break
+        finally:
+            pending.cancel()  # the page requested ahead, if the walk ended early
+            await asyncio.gather(pending, return_exceptions=True)
         return jobs
