@@ -37,6 +37,20 @@ def posted_date(text):
     return (datetime.now(EASTERN).date() - timedelta(days=days)).isoformat()
 
 
+def bullet_locations(raw):
+    """
+    Pulls locations out of bulletFields when locationsText is missing.
+
+    bulletFields looks like [job_id, location, ...]. The first entry is the
+    job id, so it is skipped. Each remaining entry is kept whole, since values
+    like 'Boston, 888 Boylston, Corp' are one location with commas inside it.
+    Placeholders like 'Location Negotiable' are kept as-is.
+
+    """
+    fields = raw.get("bulletFields") or []
+    return [f.strip() for f in fields[1:] if f and f.strip()]
+
+
 class Workday:
     def __init__(self, company):
         self.company = company
@@ -75,13 +89,14 @@ class Workday:
 
     def parse(self, raw):
         path = raw["externalPath"]
+        locations = split_locations(raw.get("locationsText")) or bullet_locations(raw)
         return JobBasic(
             ats=self.company["ats"],
             company_name=self.company["name"],
             ats_job_id=(raw.get("bulletFields") or [path])[0],
             title=raw["title"].strip(),
             url=f"{self.job_base}{path}",
-            locations=split_locations(raw.get("locationsText")),
+            locations=locations,
             posted=posted_date(raw.get("postedOn")),
         )
 
