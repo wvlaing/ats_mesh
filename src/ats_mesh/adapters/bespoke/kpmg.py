@@ -4,7 +4,6 @@ import asyncio
 import html as htmllib
 import re
 import time
-from datetime import UTC, datetime
 
 from ats_mesh.helpers.http_utils import Streak, get_with_retry
 from ats_mesh.models import JobBasic
@@ -22,8 +21,7 @@ PARAMS = {
     ),
     "order": "posted",  # newest first
 }
-FIRST_RUN_PAGES = 3  # empty `known`: take only the newest pages as a baseline
-MAX_PAGES = 120  # safety stop for normal runs, the Streak ends them much sooner
+MAX_PAGES = 120  # safety stop, the list ends on an empty page well before this
 
 ITEM_SPLIT = 'class="search--item'
 JOB_ID_RE = re.compile(r'href="(/jobdetail/\?jobId=(\d+))[^"]*"')
@@ -58,22 +56,14 @@ def parse_rows(jobs_html):
 
 class Kpmg:
     """KPMG US careers, a PHP endpoint that returns JSON with the job cards as an
-    HTML string (postings.jobs). Paging is spage=1, 2, ... newest first. The list
-    has the title, id and every location, so there are no detail requests.
+    HTML string (postings.jobs). Paging is spage=1, 2, ... and it is sorted newest
+    first. The list already has the title, id and every location, so there are no
+    detail requests. It has no posted date, so `posted` is None.
 
-    The site has no usable posted date (the detail page's datePosted is the 1st
-    of the current month for every job). So `posted` is the first-seen date: the
-    day this adapter first returned the id. That only means something if the
-    baseline is clean, so:
-
-    - First run (`known` empty): fetch only FIRST_RUN_PAGES pages and set
-      `posted` to None, because those jobs could be any age. Older jobs deeper
-      in the list are never stored, which is fine since only new ones matter.
-    - Later runs: walk from page 1 and stop when a few pages in a row hold
-      nothing new (see Streak), a page is empty, or a page repeats. New ids get
-      today's date as `posted`.
-
-    The next page is requested while the current one is being parsed."""
+    With no dates to cut off on, the walk stops when a few pages in a row hold
+    nothing new (see Streak), when a page is empty, or when a page repeats
+    (some servers answer past the end with the last page again). The next page is
+    requested while the current one is being parsed."""
 
     def __init__(self, company):
         self.company = company
@@ -86,7 +76,7 @@ class Kpmg:
         )
         return (r.json().get("postings") or {}).get("jobs") or ""
 
-    def parse(self, row, posted):
+    def parse(self, row):
         return JobBasic(
             ats=self.company["ats"],
             company_name=self.company["name"],
@@ -94,18 +84,15 @@ class Kpmg:
             title=row["title"],
             url=BASE + row["path"],
             locations=row["places"],
-            posted=posted,
+            posted=None,
         )
 
     async def fetch_jobs(self, client, known=frozenset()):
-        baseline = not known
-        last_page = FIRST_RUN_PAGES if baseline else MAX_PAGES
-        posted = None if baseline else datetime.now(UTC).date().isoformat()
         streak = Streak(known)
         listed, jobs = set(), []
         pending = asyncio.create_task(self._list_page(client, 1))
         try:
-            for p in range(1, last_page + 1):
+            for p in range(1, MAX_PAGES + 1):
                 try:
                     rows = parse_rows(await pending)
                 except Exception:
@@ -115,11 +102,10 @@ class Kpmg:
                 fresh = [r for r in rows if r["id"] not in listed]
                 if not fresh:
                     break  # empty page, or the same page served again
-                if p < last_page:
-                    pending = asyncio.create_task(self._list_page(client, p + 1))
+                pending = asyncio.create_task(self._list_page(client, p + 1))
                 listed.update(r["id"] for r in fresh)
                 streak.add([r["id"] for r in rows])
-                jobs += [self.parse(r, posted) for r in fresh if r["id"] not in known]
+                jobs += [self.parse(r) for r in fresh if r["id"] not in known]
                 if streak.done:
                     break
         finally:
