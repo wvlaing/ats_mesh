@@ -5,6 +5,7 @@ from ats_mesh.adapters.bespoke.atlassian import Atlassian
 from ats_mesh.adapters.bespoke.docusign import Docusign
 from ats_mesh.adapters.bespoke.ey import Ey
 from ats_mesh.adapters.bespoke.ibm import IBM
+from ats_mesh.adapters.bespoke.kpmg import Kpmg
 from ats_mesh.adapters.paginated.oracle import Oracle
 from ats_mesh.adapters.paginated.workday import Workday
 from ats_mesh.adapters.standard.ashby import Ashby
@@ -22,6 +23,7 @@ ADAPTERS = {
     "atlassian": Atlassian,
     "docusign": Docusign,
     "ey": Ey,
+    "kpmg": Kpmg,
     "ibm": IBM,
     "apple": Apple,
 }
