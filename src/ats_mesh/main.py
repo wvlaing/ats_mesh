@@ -31,7 +31,9 @@ async def fetch_company(client, company, known):
     except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
         print(f"{company['name']}: failed ({e!r})")
         return []
-    print(f"{company['name']}: {len(jobs)} jobs")
+    new = {j.ats_job_id for j in jobs} - known
+    if new:
+        print(f"{company['name']}: {len(new)} new")
     return jobs
 
 
@@ -51,15 +53,25 @@ async def pull(known_by_company):
 
 def main() -> None:
     con = db.connect()
-    jobs = asyncio.run(pull(db.known_ids(con)))
-    print(f"\nPulled {len(jobs)} jobs, {db.add_jobs(con, jobs)} never seen before")
+    known = db.known_ids(con)
+    jobs = asyncio.run(pull(known))
+    db.add_jobs(con, jobs)
+    new_keys = {
+        (j.company_name, j.ats_job_id)
+        for j in jobs
+        if j.ats_job_id not in known.get(j.company_name, ())
+    }
+    print(f"\n{len(new_keys)} new jobs since last search")
 
     # Filter everything ever pulled, so editing filters.json applies to old jobs too.
     rows = db.all_jobs(con)
-    for label, count in apply_filters(rows, load_config()).items():
-        print(f"Filtered out {count}: {label}")
+    apply_filters(rows, load_config())
     db.save_reasons(con, rows)
     con.commit()
+
+    kept = [r for r in rows if not r["reason"]]
+    new_kept = sum((r["company_name"], r["ats_job_id"]) in new_keys for r in kept)
+    print(f"{new_kept} of them pass your filters")
 
     kept = [r for r in rows if not r["reason"]]
     print(f"{len(kept)} jobs left after filtering")
