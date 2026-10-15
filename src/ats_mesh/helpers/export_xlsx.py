@@ -9,7 +9,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 COLUMNS = ["ats", "company_name", "title", "posted", "locations", "url"]
-WIDTHS = [16, 22, 50, 14, 40, 50]
+WIDTHS = [12, 25, 70, 14, 40, 50]
 FONT = "Arial"
 
 
