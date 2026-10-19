@@ -14,5 +14,6 @@ wheels/
 /settings/companies.json
 /settings/filters.json
 /data/
+/notes/
 /scripts/
 companies.txt
