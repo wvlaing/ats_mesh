@@ -1,19 +1,19 @@
-# ~/src/ats_mesh/adapters/__init__.py
+from ats_mesh.adapters.apple import Apple
+from ats_mesh.adapters.ashby import Ashby
+from ats_mesh.adapters.atlassian import Atlassian
+from ats_mesh.adapters.base import Adapter
+from ats_mesh.adapters.docusign import Docusign
+from ats_mesh.adapters.ey import Ey
+from ats_mesh.adapters.greenhouse import Greenhouse
+from ats_mesh.adapters.ibm import IBM
+from ats_mesh.adapters.kpmg import Kpmg
+from ats_mesh.adapters.lever import Lever
+from ats_mesh.adapters.oracle import Oracle
+from ats_mesh.adapters.smartrecruiters import SmartRecruiters
+from ats_mesh.adapters.workday import Workday
 
-from ats_mesh.adapters.bespoke.apple import Apple
-from ats_mesh.adapters.bespoke.atlassian import Atlassian
-from ats_mesh.adapters.bespoke.docusign import Docusign
-from ats_mesh.adapters.bespoke.ey import Ey
-from ats_mesh.adapters.bespoke.ibm import IBM
-from ats_mesh.adapters.bespoke.kpmg import Kpmg
-from ats_mesh.adapters.paginated.oracle import Oracle
-from ats_mesh.adapters.paginated.workday import Workday
-from ats_mesh.adapters.standard.ashby import Ashby
-from ats_mesh.adapters.standard.greenhouse import Greenhouse
-from ats_mesh.adapters.standard.lever import Lever
-from ats_mesh.adapters.standard.smartrecruiters import SmartRecruiters
-
-ADAPTERS = {
+# The "ats" names used as keys in companies.json.
+ADAPTERS: dict[str, type[Adapter]] = {
     "greenhouse": Greenhouse,
     "ashby": Ashby,
     "lever": Lever,

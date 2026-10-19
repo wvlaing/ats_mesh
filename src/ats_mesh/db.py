@@ -1,91 +1,51 @@
-# ~/src/ats_mesh/db.py
-
 import json
-import shutil
 import sqlite3
+from collections import defaultdict
 
 from ats_mesh.config import DB_PATH
-from ats_mesh.helpers.time_utils import fmt_eastern, now_utc
+from ats_mesh.dates import timestamp
+from ats_mesh.models import Job
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
-    company_name TEXT    NOT NULL,
-    ats_job_id   TEXT    NOT NULL,
+    company_name TEXT NOT NULL,
+    ats_job_id   TEXT NOT NULL,
     ats          TEXT,
     title        TEXT,
     url          TEXT,
-    locations    TEXT,                  -- JSON list, as the ATS gave it
-    posted       TEXT,                  -- YYYY-MM-DD, fixed the first time we see the job
-    first_seen   TEXT,                  -- '2026-09-03 1330 EDT'
-    reason       TEXT,                  -- which filter dropped it; NULL = kept
-    shown        INTEGER NOT NULL DEFAULT 0,  -- 1 while the job is in the sheet
+    locations    TEXT,   -- JSON list, as the ATS gave it
+    posted       TEXT,   -- YYYY-MM-DD, fixed the first time we see the job
+    first_seen   TEXT,   -- '2026-09-03 1330 EDT'
+    reason       TEXT,   -- which filter dropped it; NULL = kept
     PRIMARY KEY (company_name, ats_job_id)
 )
 """
 
 
-def migrate_company_id(con):
-    """Older databases keyed jobs on (company_id, ats_job_id). Rebuild the table keyed
-    on (company_name, ats_job_id) instead, keeping every row. A copy of the database
-    is saved next to it first, as jobs.db.bak."""
-    columns = [row[1] for row in con.execute("PRAGMA table_info(jobs)")]
-    if "company_id" not in columns:
-        return
-    con.commit()
-    shutil.copy2(DB_PATH, DB_PATH.with_name(DB_PATH.name + ".bak"))
-    con.executescript(
-        "BEGIN;"
-        "ALTER TABLE jobs RENAME TO jobs_old;"
-        + SCHEMA
-        + ";INSERT OR IGNORE INTO jobs (company_name, ats_job_id, ats, title, url,"
-        " locations, posted, first_seen, reason, shown)"
-        " SELECT company_name, ats_job_id, ats, title, url, locations, posted,"
-        " first_seen, reason, shown FROM jobs_old;"
-        "DROP TABLE jobs_old;"
-        "COMMIT;"
-    )
-
-
-def ensure_unique(con):
-    """Older databases have no primary key, so INSERT OR IGNORE re-inserted every
-    job on every run. Drop the duplicates (keeping the first copy) and add the key."""
-    if any(row[2] for row in con.execute("PRAGMA index_list(jobs)")):  # already has one
-        return
-    con.execute(
-        "DELETE FROM jobs WHERE rowid NOT IN"
-        " (SELECT MIN(rowid) FROM jobs GROUP BY company_name, ats_job_id)"
-    )
-    con.execute("CREATE UNIQUE INDEX jobs_key ON jobs(company_name, ats_job_id)")
-    con.commit()
-
-
-def connect():
+def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB_PATH)
-    con.execute(SCHEMA)  # does nothing if the table exists, even an old-shaped one
-    migrate_company_id(con)
-    ensure_unique(con)
+    con: sqlite3.Connection = sqlite3.connect(database=DB_PATH)
+    con.execute(SCHEMA)  # does nothing if the table already exists
     return con
 
 
-def known_ids(con):
-    """{company name: set of ats_job_ids ever pulled}, filtered out or not. Adapters
-    use it to skip jobs they've already got instead of re-fetching them."""
-    known = {}
+def known_ids(con: sqlite3.Connection) -> dict[str, set[str]]:
+    """{company name: ats_job_ids ever pulled}, filtered out or not. Adapters use
+    it to skip jobs they've already got instead of re-fetching them."""
+    known: defaultdict[str, set[str]] = defaultdict(set)
     for name, job_id in con.execute("SELECT company_name, ats_job_id FROM jobs"):
-        known.setdefault(name, set()).add(job_id)
+        known[name].add(job_id)
     return known
 
 
-def add_jobs(con, jobs):
+def add_jobs(con: sqlite3.Connection, jobs: list[Job]) -> None:
     """Insert jobs we've never seen; rows we have are left alone. That keeps posted
     and first_seen fixed, so a job keeps aging even though the site keeps saying
-    'Posted 30+ Days Ago'. Returns how many were new."""
-    seen = fmt_eastern(now_utc())
-    before = con.total_changes
+    'Posted 30+ Days Ago'."""
+    seen = timestamp()
     con.executemany(
-        "INSERT OR IGNORE INTO jobs (company_name, ats_job_id, ats, title,"
-        " url, locations, posted, first_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO jobs (company_name, ats_job_id, ats, title, url,"
+        " locations, posted, first_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
             (
                 j.company_name,
@@ -93,7 +53,7 @@ def add_jobs(con, jobs):
                 j.ats,
                 j.title,
                 j.url,
-                json.dumps(j.locations, ensure_ascii=False),
+                json.dumps(obj=j.locations, ensure_ascii=False),
                 j.posted,
                 seen,
             )
@@ -101,27 +61,22 @@ def add_jobs(con, jobs):
         ],
     )
     con.commit()
-    return con.total_changes - before
 
 
-def all_jobs(con):
-    con.row_factory = sqlite3.Row
-    rows = [dict(r) for r in con.execute("SELECT * FROM jobs")]
-    con.row_factory = None
-    for r in rows:
-        r["locations"] = json.loads(r["locations"])
-    return rows
+def load_jobs(con: sqlite3.Connection) -> list[Job]:
+    rows: sqlite3.Cursor = con.execute(
+        "SELECT ats, company_name, ats_job_id, title, url, locations, posted,"
+        " first_seen FROM jobs"
+    )
+    return [
+        Job(ats, company, job_id, title, url, json.loads(locations), posted, seen)
+        for ats, company, job_id, title, url, locations, posted, seen in rows
+    ]
 
 
-def save_reasons(con, rows):
+def save_reasons(con: sqlite3.Connection, jobs: list[Job]) -> None:
     con.executemany(
         "UPDATE jobs SET reason = ? WHERE company_name = ? AND ats_job_id = ?",
-        [(r["reason"], r["company_name"], r["ats_job_id"]) for r in rows],
+        [(j.reason, j.company_name, j.ats_job_id) for j in jobs],
     )
-
-
-def set_shown(con, rows, value):
-    con.executemany(
-        "UPDATE jobs SET shown = ? WHERE company_name = ? AND ats_job_id = ?",
-        [(value, r["company_name"], r["ats_job_id"]) for r in rows],
-    )
+    con.commit()

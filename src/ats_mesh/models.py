@@ -1,14 +1,22 @@
-# ~/src/ats_mesh/models.py
-
 from dataclasses import dataclass, field
+from typing import Any, TypedDict
+
+type Raw = dict[str, Any]  # a decoded JSON object from a careers site
 
 
-@dataclass
-class JobBasic:
-    """Surface-level info, taken straight from a company's job list.
+class Company(TypedDict):
+    """One enabled entry from companies.json."""
 
-    Stage 1. One list call per company, never one request per job.
-    Identity of a job is (company_name, ats_job_id), see `key`.
+    name: str
+    ats: str
+    access: Raw
+
+
+@dataclass(slots=True)
+class Job:
+    """One posting. Identity is (company_name, ats_job_id), see `key`.
+
+    `first_seen` and `reason` are filled in by the database, not by adapters.
     """
 
     ats: str
@@ -17,8 +25,10 @@ class JobBasic:
     title: str
     url: str | None = None
     locations: list[str] = field(default_factory=list)
-    posted: str | None = None  # When the job was first posted (oldest confimred age)
+    posted: str | None = None  # YYYY-MM-DD, None when the site gives no date
+    first_seen: str = ""  # '2026-09-03 1330 EDT'
+    reason: str | None = None  # which filter dropped it, None = kept
 
     @property
-    def key(self):
-        return f"{self.company_name}:{self.ats_job_id}"
+    def key(self) -> tuple[str, str]:
+        return (self.company_name, self.ats_job_id)

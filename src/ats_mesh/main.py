@@ -1,86 +1,74 @@
-# ~/src/ats_mesh/main.py
-
 import asyncio
-import json
+from collections.abc import Set
+from contextlib import closing
 
 import httpx
 
-from ats_mesh import db
+from ats_mesh import db, export
 from ats_mesh.adapters import ADAPTERS
-from ats_mesh.config import (
-    RAW_FILE,
-    WRITE_RAW_JSON,
-    XLSX_FILE,
-)
-from ats_mesh.helpers.company_utils import load_companies
-from ats_mesh.helpers.export_xlsx import sync
-from ats_mesh.helpers.filter_utils import apply_filters, load_config
+from ats_mesh.adapters.base import Adapter
+from ats_mesh.companies import load_companies
+from ats_mesh.config import XLSX_FILE
+from ats_mesh.filters import apply_filters, load_filters
+from ats_mesh.models import Company, Job
+from ats_mesh.net import FETCH_ERRORS
 
-HEADERS = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+HEADERS: dict[str, str] = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
 
 
-async def fetch_company(client, company, known):
-    """Never raises, so one failing company can't sink the rest. `known` is the set
-    of job ids already in the database for this company."""
-    adapter_cls = ADAPTERS.get(company["ats"])
-    if adapter_cls is None:
-        print(f"{company['name']}: no adapter for {company['ats']!r}, skipping")
+async def fetch_company(
+    client: httpx.AsyncClient, company: Company, known: Set[str]
+) -> list[Job]:
+    """The company's jobs we haven't seen before. Never raises, so one failing
+    company can't sink the rest."""
+    name: str = company["name"]
+    adapter: type[Adapter] | None = ADAPTERS.get(company["ats"])
+    if adapter is None:
+        print(f"{name}: no adapter for {company['ats']!r}, skipping")
         return []
     try:
-        jobs = await adapter_cls(company).fetch_jobs(client, known)
-    except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
-        print(f"{company['name']}: failed ({e!r})")
+        jobs: list[Job] = await adapter(company).fetch_jobs(client, known)
+    except FETCH_ERRORS as e:
+        print(f"{name}: failed ({e!r})")
         return []
-    new = {j.ats_job_id for j in jobs} - known
+    new: list[Job] = list(
+        {j.ats_job_id: j for j in jobs if j.ats_job_id not in known}.values()
+    )
     if new:
-        print(f"{company['name']}: {len(new)} new")
-    return jobs
+        print(f"{name}: {len(new)} new")
+    return new
 
 
-async def pull(known_by_company):
-    companies = load_companies()
+async def pull(known: dict[str, set[str]]) -> list[Job]:
     async with httpx.AsyncClient(
         headers=HEADERS, timeout=30, follow_redirects=True
     ) as client:
-        results = await asyncio.gather(
+        results: list[list[Job]] = await asyncio.gather(
             *(
-                fetch_company(client, c, known_by_company.get(c["name"], frozenset()))
-                for c in companies
+                fetch_company(client, company=c, known=known.get(c["name"], set()))
+                for c in load_companies()
             )
         )
     return [job for jobs in results for job in jobs]
 
 
 def main() -> None:
-    con = db.connect()
-    known = db.known_ids(con)
-    jobs = asyncio.run(pull(known))
-    db.add_jobs(con, jobs)
-    new_keys = {
-        (j.company_name, j.ats_job_id)
-        for j in jobs
-        if j.ats_job_id not in known.get(j.company_name, ())
-    }
-    print(f"\n{len(new_keys)} new jobs since last search")
+    with closing(thing=db.connect()) as con:
+        new: list[Job] = asyncio.run(main=pull(db.known_ids(con)))
+        db.add_jobs(con, jobs=new)
+        print(f"\n{len(new)} new jobs since last search")
 
-    # Filter everything ever pulled, so editing filters.json applies to old jobs too.
-    rows = db.all_jobs(con)
-    apply_filters(rows, load_config())
-    db.save_reasons(con, rows)
-    con.commit()
+        # Filter everything ever pulled, so editing filters.json applies to old jobs too.
+        jobs: list[Job] = db.load_jobs(con)
+        apply_filters(jobs, load_filters())
+        db.save_reasons(con, jobs)
 
-    kept = [r for r in rows if not r["reason"]]
-    new_kept = sum((r["company_name"], r["ats_job_id"]) in new_keys for r in kept)
-    print(f"{new_kept} of them pass your filters")
-
-    kept = [r for r in rows if not r["reason"]]
+    kept: list[Job] = [j for j in jobs if not j.reason]
+    new_keys: set[tuple[str, str]] = {j.key for j in new}
+    print(f"{sum(j.key in new_keys for j in kept)} of them pass your filters")
     print(f"{len(kept)} jobs left after filtering")
 
-    sync(XLSX_FILE, kept, [r for r in rows if r["reason"]])
-
-    if WRITE_RAW_JSON:  # every job ever pulled, with the filter that dropped it
-        raw = json.dumps(db.all_jobs(con), indent=2, ensure_ascii=False)
-        RAW_FILE.write_text(raw, encoding="utf-8")
+    export.sync(path=XLSX_FILE, added=kept, removed=[j for j in jobs if j.reason])
 
 
 if __name__ == "__main__":
