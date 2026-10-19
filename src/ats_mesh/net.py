@@ -6,7 +6,7 @@ import httpx
 
 from ats_mesh.models import Raw
 
-RETRY_STATUS = {429, 500, 502, 503, 504}
+RETRY_STATUS: set[int] = {429, 500, 502, 503, 504}
 
 # What a bad response from a careers site looks like. Used to keep one failing
 # company from sinking the run, and to end a page walk early.
@@ -76,7 +76,7 @@ async def walk[T](
     Use it as `async with aclosing(walk(...)) as pages`, so a page requested
     ahead is cancelled when the caller stops early.
     """
-    pending = asyncio.create_task(fetch(start))
+    pending = asyncio.create_task(fetch(start))  # ty: ignore[invalid-argument-type]
     try:
         for page in range(start, start + limit):
             try:
@@ -85,7 +85,7 @@ async def walk[T](
                 if page == start:
                     raise
                 return
-            pending = asyncio.create_task(fetch(page + 1))
+            pending = asyncio.create_task(coro=fetch(page + 1))  # ty: ignore[invalid-argument-type]
             yield result
     finally:
         pending.cancel()
@@ -98,11 +98,11 @@ class Streak:
 
     def __init__(self, known: Set[str], extra: int = EXTRA_PAGES) -> None:
         self.known = known
-        self.extra = extra
+        self.extra: int = extra
         self.run = 0
 
     def add(self, ids: Iterable[str]) -> None:
-        ids = list(ids)
+        ids: list[str] = list(ids)
         if not ids:
             return  # an empty or failed page says nothing, don't count it
         self.run = 0 if any(i not in self.known for i in ids) else self.run + 1
