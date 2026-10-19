@@ -46,11 +46,25 @@ def migrate_company_id(con):
     )
 
 
+def ensure_unique(con):
+    """Older databases have no primary key, so INSERT OR IGNORE re-inserted every
+    job on every run. Drop the duplicates (keeping the first copy) and add the key."""
+    if any(row[2] for row in con.execute("PRAGMA index_list(jobs)")):  # already has one
+        return
+    con.execute(
+        "DELETE FROM jobs WHERE rowid NOT IN"
+        " (SELECT MIN(rowid) FROM jobs GROUP BY company_name, ats_job_id)"
+    )
+    con.execute("CREATE UNIQUE INDEX jobs_key ON jobs(company_name, ats_job_id)")
+    con.commit()
+
+
 def connect():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(DB_PATH)
     con.execute(SCHEMA)  # does nothing if the table exists, even an old-shaped one
     migrate_company_id(con)
+    ensure_unique(con)
     return con
 
 

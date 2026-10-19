@@ -4,6 +4,8 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from functools import cached_property
+from typing import LiteralString
 
 from ats_mesh.config import FILTERS_FILE, MAX_AGE_DAYS
 from ats_mesh.helpers.time_utils import EASTERN
@@ -128,9 +130,13 @@ class Config:
     # Company-specific blocks, keyed by normalized company name.
     companies: dict = field(default_factory=dict)
 
-    @property
+    @cached_property
     def manual(self):
         return {_norm(x) for x in self.remove_locations}
+
+    @cached_property
+    def title_words(self):
+        return [w.casefold() for w in self.exclude_title_words if w.strip()]
 
     def for_company(self, name):
         """The global filters with this company's block applied, if it has one:
@@ -208,7 +214,7 @@ def _norm(s):
 
 
 def _words(terms):
-    alt = "|".join(re.escape(t) for t in sorted(terms, key=len, reverse=True))
+    alt = "|".join(re.escape(t) for t in sorted(terms, key=len, reverse=True))  # ty: ignore[invalid-argument-type]
     return re.compile(rf"(?<![^\W\d_])(?:{alt})(?![^\W\d_])", re.IGNORECASE)
 
 
@@ -314,10 +320,8 @@ def location_filter(job, cfg):
 
 
 def title_filter(job, cfg):
-    """Placeholder for title filtering. Does nothing until filters.json has
-    `exclude_title_words`."""
     title = (job.get("title") or "").casefold()
-    if any(w.casefold() in title for w in cfg.exclude_title_words if w.strip()):
+    if any(w in title for w in cfg.title_words):
         return "unwanted title"
     return None
 

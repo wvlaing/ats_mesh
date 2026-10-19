@@ -45,8 +45,8 @@ def open_sheet(path: Path) -> tuple[Workbook, Worksheet]:
     return wb, ws
 
 
-def style_row(ws: Worksheet, row: int, url_col: int) -> None:
-    for col in range(1, ws.max_column + 1):
+def style_row(ws: Worksheet, row: int, url_col: int, ncols: int) -> None:
+    for col in range(1, ncols + 1):
         cell = ws.cell(row=row, column=col)
         cell.font = Font(name=FONT)
         cell.alignment = Alignment(vertical="top")
@@ -92,8 +92,9 @@ def sync(path: Path, added: list[dict], removed: list[dict]) -> None:
             ws.append([cell_value(job, str(name)) for name in header])
             appended += 1
 
-    for row in range(2, ws.max_row + 1):  # delete_rows loses hyperlinks, so redo all
-        style_row(ws, row, url_col)
+    ncols = ws.max_column
+    for row in range(2, ws.max_row + 1):
+        style_row(ws, row, url_col, ncols)
     ws.auto_filter.ref = ws.dimensions
     wb.save(path)
     print(f"Excel: +{appended} / -{deleted} rows in {path.name}")
