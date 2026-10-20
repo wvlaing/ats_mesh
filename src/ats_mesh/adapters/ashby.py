@@ -12,13 +12,18 @@ BASE_URL = "https://api.ashbyhq.com/posting-api/job-board"
 
 class Ashby(Adapter):
     async def fetch_jobs(self, client: httpx.AsyncClient, known: Set[str]) -> list[Job]:
-        r = await net.get(client, f"{BASE_URL}/{self.access['board_name']}")
+        r: httpx.Response = await net.get(
+            client, f"{BASE_URL}/{self.access['board_name']}"
+        )
         return [
             self.job(
                 raw["id"],
                 raw["title"],
                 raw.get("jobUrl"),
-                [raw.get("location"), *(s["location"] for s in raw.get("secondaryLocations") or [])],
+                [
+                    raw.get("location"),
+                    *(s["location"] for s in raw.get("secondaryLocations") or []),
+                ],
                 eastern_date(raw.get("publishedAt")),
             )
             for raw in r.json()["jobs"]

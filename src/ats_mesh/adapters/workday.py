@@ -60,9 +60,14 @@ class Workday(Adapter):
             self.facets = {}  # US only failed: try again with no country filter
             first = await self._page(client, 0)
         rest = await net.gather_lists(
-            self._postings(client, offset) for offset in range(LIMIT, first["total"], LIMIT)
+            self._postings(client, offset)
+            for offset in range(LIMIT, first["total"], LIMIT)
         )
-        return [self._parse(raw) for raw in first["jobPostings"] + rest if raw.get("externalPath")]
+        return [
+            self._parse(raw)
+            for raw in first["jobPostings"] + rest
+            if raw.get("externalPath")
+        ]
 
     def _parse(self, raw: Raw) -> Job:
         path = raw["externalPath"]

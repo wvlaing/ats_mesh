@@ -1,4 +1,5 @@
 from collections.abc import Set
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -6,14 +7,14 @@ import httpx
 from ats_mesh import net
 from ats_mesh.adapters.base import Adapter
 from ats_mesh.dates import cutoff, epoch_ms_date
-from ats_mesh.net import FETCH_ERRORS, Streak
 from ats_mesh.models import Job, Raw
+from ats_mesh.net import FETCH_ERRORS, Streak
 
 API_URL = "https://www-api.ibm.com/search/api/v2"
 COUNTRY = "United States"  # "" = no country filter
 PAGE_SIZE = 30  # what the site asks for; the server's maximum is untested
 # 17 = Hybrid/Remote, 19 = location
-SOURCE = ["title", "url", "field_keyword_17", "field_keyword_19"]
+SOURCE: list[str] = ["title", "url", "field_keyword_17", "field_keyword_19"]
 
 
 def job_id(raw: Raw) -> str:
@@ -36,7 +37,9 @@ class IBM(Adapter):
     def _body(self, offset: int) -> Raw:
         """Elasticsearch-style search, without facet aggregations."""
         country = self.access.get("country", COUNTRY)
-        must = [{"term": {"field_keyword_05": country}}] if country else []
+        must: list[dict[str, dict[str, Any]]] = (
+            [{"term": {"field_keyword_05": country}}] if country else []
+        )
         return {
             "appId": "careers",
             "scopes": ["careers2"],
@@ -52,11 +55,11 @@ class IBM(Adapter):
         }
 
     async def _page(self, client: httpx.AsyncClient, offset: int) -> Raw:
-        r = await net.post(client, API_URL, json=self._body(offset))
+        r: httpx.Response = await net.post(client, API_URL, json=self._body(offset))
         return r.json()["hits"]
 
     async def fetch_jobs(self, client: httpx.AsyncClient, known: Set[str]) -> list[Job]:
-        oldest = cutoff()
+        oldest: str = cutoff()
         streak = Streak(known)
         jobs: list[Job] = []
         offset, total = 0, 1
@@ -76,13 +79,19 @@ class IBM(Adapter):
             streak.add(job_id(raw) for raw in postings)
             too_old = False
             for raw in postings:
-                posted = posted_date(raw)
+                posted: str | None = posted_date(raw)
                 if posted and posted < oldest:
                     too_old = True
                     continue
                 src = raw["_source"]
                 jobs.append(
-                    self.job(job_id(raw), src["title"], src.get("url"), [src.get("field_keyword_19")], posted)
+                    self.job(
+                        job_id(raw),
+                        src["title"],
+                        src.get("url"),
+                        [src.get("field_keyword_19")],
+                        posted,
+                    )
                 )
             if too_old or streak.done:
                 break  # newest first, so nothing after this is in range

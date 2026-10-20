@@ -21,9 +21,13 @@ def place(entry: str | Raw) -> str | None:
 class Oracle(Adapter):
     def __init__(self, company: Company) -> None:
         super().__init__(company)
-        self.host: str = self.access["host"].strip().removeprefix("https://").rstrip("/")
+        self.host: str = (
+            self.access["host"].strip().removeprefix("https://").rstrip("/")
+        )
         self.site: str = self.access["site"]
-        self.job_base = f"https://{self.host}/hcmUI/CandidateExperience/en/sites/{self.site}/job"
+        self.job_base = (
+            f"https://{self.host}/hcmUI/CandidateExperience/en/sites/{self.site}/job"
+        )
 
     def _url(self, offset: int) -> str:
         """Built by hand (not via params=) so the finder string goes out exactly the
@@ -35,7 +39,9 @@ class Oracle(Adapter):
         if location_id := self.access.get("location_id"):
             finder += f",locationId={location_id}"
         if days := self.access.get("posted_within_days"):
-            finder += f",lastSelectedFacet=POSTING_DATES,selectedPostingDatesFacet={days}"
+            finder += (
+                f",lastSelectedFacet=POSTING_DATES,selectedPostingDatesFacet={days}"
+            )
         return f"https://{self.host}{API_PATH}?onlyData=true&expand={EXPAND}&finder={finder}"
 
     async def _page(self, client: httpx.AsyncClient, offset: int) -> Raw:

@@ -1,4 +1,5 @@
 from collections.abc import Set
+from typing import Any
 
 import httpx
 
@@ -20,20 +21,23 @@ class Atlassian(Adapter):
     """One GET returns a plain list of every job (iCIMS behind the scenes)."""
 
     async def fetch_jobs(self, client: httpx.AsyncClient, known: Set[str]) -> list[Job]:
-        r = await net.get(client, self.access.get("portal", URL))
+        r: httpx.Response = await net.get(client, self.access.get("portal", URL))
         jobs: list[Job] = []
         for raw in r.json():
-            places = [" ".join(p.split()) for p in raw.get("locations") or []]  # their spacing is messy
+            places: list[str] = [
+                " ".join(p.split()) for p in raw.get("locations") or []
+            ]  # their spacing is messy
             if not keep(places):
                 continue
-            post = raw["portalJobPost"]
+            post: Any = raw["portalJobPost"]
             jobs.append(
                 self.job(
                     raw["id"],
                     raw["title"],
                     post["portalUrl"],
                     places,
-                    (post.get("updatedDate") or "")[:10] or None,  # edit date, closest they give
+                    (post.get("updatedDate") or "")[:10]
+                    or None,  # edit date, closest they give
                 )
             )
         return jobs

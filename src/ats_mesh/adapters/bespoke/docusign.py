@@ -1,5 +1,6 @@
 import math
 from collections.abc import Set
+from typing import Any
 
 import httpx
 
@@ -18,14 +19,16 @@ class Docusign(Adapter):
     it: every page is always read."""
 
     async def _page(self, client: httpx.AsyncClient, page: int) -> Raw:
-        params = {
+        params: dict[str, Any] = {
             "page": page,
             "limit": LIMIT,
             "sortBy": "relevance",
             "descending": "false",
             "internal": "false",
         }
-        r = await net.get(client, self.access.get("portal", URL), params=params)
+        r: httpx.Response = await net.get(
+            client, self.access.get("portal", URL), params=params
+        )
         return r.json()
 
     async def _jobs(self, client: httpx.AsyncClient, page: int) -> list[Raw]:

@@ -7,8 +7,8 @@ import httpx
 
 from ats_mesh.adapters.base import Adapter
 from ats_mesh.dates import eastern_date
-from ats_mesh.net import Streak
 from ats_mesh.models import Job, Raw
+from ats_mesh.net import Streak
 
 TEXAS_ONLY = True  # False = every US job (about 4,500, so roughly 225 pages)
 CONCURRENCY = 3  # pages in flight at once, 3 didn't make Apple's empty pages worse
@@ -58,8 +58,8 @@ def places(raw: Raw) -> list[str]:
     these are US places (Apple leaves stateProvince empty)."""
     found: list[str] = []
     for loc in raw.get("locations") or []:
-        name = (loc.get("name") or "").strip()
-        country = (loc.get("countryName") or "").strip().replace(" of America", "")
+        name: str = (loc.get("name") or "").strip()
+        country: str = (loc.get("countryName") or "").strip().replace(" of America", "")
         if name and country and country.casefold() not in name.casefold():
             name = f"{name}, {country}"
         if name:
@@ -90,7 +90,7 @@ class Apple(Adapter):
 
     @staticmethod
     async def _token(client: httpx.AsyncClient) -> str:
-        r = await client.get(CSRF_URL)
+        r: httpx.Response = await client.get(CSRF_URL)
         r.raise_for_status()
         return r.headers["X-Apple-CSRF-Token"]
 
@@ -105,7 +105,7 @@ class Apple(Adapter):
             raise
 
     async def _search(self, client: httpx.AsyncClient, token: str, page: int) -> Raw:
-        r = await client.post(
+        r: httpx.Response = await client.post(
             SEARCH_URL, json=self._payload(page), headers={"X-Apple-CSRF-Token": token}
         )
         r.raise_for_status()
@@ -130,7 +130,7 @@ class Apple(Adapter):
                     elif step == "token":
                         token = await self._token(client)
                     res = await self._search(client, token, page)
-                except (httpx.HTTPError, ValueError):
+                except httpx.HTTPError, ValueError:
                     res = {}
                 if res.get("searchResults"):
                     return res
@@ -140,7 +140,9 @@ class Apple(Adapter):
                 await client.aclose()
 
     @staticmethod
-    def _add(rows: dict[str, Raw], results: Iterable[Raw], streak: Streak | None = None) -> None:
+    def _add(
+        rows: dict[str, Raw], results: Iterable[Raw], streak: Streak | None = None
+    ) -> None:
         """One row per posting, so repeats across pages vanish."""
         results = list(results)
         for raw in results:
@@ -155,7 +157,7 @@ class Apple(Adapter):
         """Fetches pages a few at a time into rows, one batch after the next so the
         streak sees them in order. With a streak it stops once enough pages in a row
         held nothing new. Returns the pages that gave up."""
-        todo = list(pages)
+        todo: list[int] = list(pages)
         sem = asyncio.Semaphore(CONCURRENCY)
 
         async def one(page: int) -> tuple[int, list[Raw]]:
@@ -165,7 +167,9 @@ class Apple(Adapter):
 
         failed: list[int] = []
         for i in range(0, len(todo), CONCURRENCY):
-            for page, results in await asyncio.gather(*(one(p) for p in todo[i : i + CONCURRENCY])):
+            for page, results in await asyncio.gather(
+                *(one(p) for p in todo[i : i + CONCURRENCY])
+            ):
                 if results:
                     self._add(rows, results, streak)
                 else:
@@ -179,13 +183,15 @@ class Apple(Adapter):
         results: list[Raw] = first.get("searchResults") or []
         if not results:
             raise ValueError("page 1 came back empty after every retry")
-        per_page = len(results)
-        pages = math.ceil((first.get("totalRecords") or per_page) / per_page)
+        per_page: int = len(results)
+        pages: int = math.ceil((first.get("totalRecords") or per_page) / per_page)
 
         rows: dict[str, Raw] = {}
         streak = Streak(known)
         self._add(rows, results, streak)
-        missing = [] if streak.done else await self._crawl(range(2, pages + 1), rows, streak)
+        missing: list[int] = (
+            [] if streak.done else await self._crawl(range(2, pages + 1), rows, streak)
+        )
         if missing:  # one more go at the pages that gave up, after a pause
             await asyncio.sleep(5)
             missing = await self._crawl(missing, rows)
@@ -196,7 +202,7 @@ class Apple(Adapter):
         return [self._parse(raw) for raw in rows.values()]
 
     def _parse(self, raw: Raw) -> Job:
-        job_id = row_id(raw)
+        job_id: str = row_id(raw)
         slug = raw.get("transformedPostingTitle")
         return self.job(
             job_id,

@@ -3,18 +3,20 @@ import re
 import time
 from collections.abc import Set
 from contextlib import aclosing
-from typing import NamedTuple
+from typing import LiteralString, NamedTuple
 
 import httpx
 
 from ats_mesh import net
 from ats_mesh.adapters.base import Adapter
-from ats_mesh.net import Streak
 from ats_mesh.models import Job
+from ats_mesh.net import Streak
 
 BASE = "https://www.kpmguscareers.com"
-URL = f"{BASE}/wp-content/themes/understrap-child-main/page-templates/google/get-jobs.php"
-PARAMS = {
+URL: LiteralString = (
+    f"{BASE}/wp-content/themes/understrap-child-main/page-templates/google/get-jobs.php"
+)
+PARAMS: dict[str, str] = {
     "ajax": "1",
     "career-level-parents": "",
     "career-level": (
@@ -25,10 +27,12 @@ PARAMS = {
 MAX_PAGES = 120  # safety stop, the list ends on an empty page well before this
 
 ITEM_SPLIT = 'class="search--item'
-JOB_ID_RE = re.compile(r'href="(/jobdetail/\?jobId=(\d+))[^"]*"')
-TITLE_RE = re.compile(r'class="h4 mb-4">([^<]+)<')
+JOB_ID_RE: re.Pattern[str] = re.compile(r'href="(/jobdetail/\?jobId=(\d+))[^"]*"')
+TITLE_RE: re.Pattern[str] = re.compile(r'class="h4 mb-4">([^<]+)<')
 # "Tax | Dallas, TX; New York, NY". The "3 Locations" div has no pipe, so it is skipped.
-META_RE = re.compile(r'class="text-xs text-dark-grey">\s*([^<|]*?)\s*\|\s*([^<]*?)\s*<')
+META_RE: re.Pattern[str] = re.compile(
+    r'class="text-xs text-dark-grey">\s*([^<|]*?)\s*\|\s*([^<]*?)\s*<'
+)
 
 
 class Listing(NamedTuple):
@@ -45,13 +49,20 @@ def clean(s: str) -> str:
 def parse_rows(jobs_html: str) -> list[Listing]:
     rows: list[Listing] = []
     for chunk in jobs_html.split(ITEM_SPLIT)[1:]:
-        href = JOB_ID_RE.search(chunk)
-        title = TITLE_RE.search(chunk)
+        href: re.Match[str] | None = JOB_ID_RE.search(chunk)
+        title: re.Match[str] | None = TITLE_RE.search(chunk)
         if not (href and title):
             continue
-        meta = META_RE.search(chunk)
-        places = [clean(p) for p in meta.group(2).split(";")] if meta else []
-        rows.append(Listing(href.group(2), html.unescape(href.group(1)), clean(title.group(1)), places))
+        meta: re.Match[str] | None = META_RE.search(chunk)
+        places: list[str] = [clean(p) for p in meta.group(2).split(";")] if meta else []
+        rows.append(
+            Listing(
+                href.group(2),
+                html.unescape(href.group(1)),
+                clean(title.group(1)),
+                places,
+            )
+        )
     return rows
 
 
@@ -66,7 +77,9 @@ class Kpmg(Adapter):
     the last page again)."""
 
     async def _rows(self, client: httpx.AsyncClient, page: int) -> list[Listing]:
-        r = await net.get(client, URL, params={**PARAMS, "spage": page, "_": int(time.time() * 1000)})
+        r: httpx.Response = await net.get(
+            client, URL, params={**PARAMS, "spage": page, "_": int(time.time() * 1000)}
+        )
         return parse_rows((r.json().get("postings") or {}).get("jobs") or "")
 
     async def fetch_jobs(self, client: httpx.AsyncClient, known: Set[str]) -> list[Job]:
@@ -77,12 +90,14 @@ class Kpmg(Adapter):
             net.walk(lambda page: self._rows(client, page), start=1, limit=MAX_PAGES)
         ) as pages:
             async for rows in pages:
-                fresh = [r for r in rows if r.id not in listed]
+                fresh: list[Listing] = [r for r in rows if r.id not in listed]
                 if not fresh:
                     break  # empty page, or the same page served again
                 listed.update(r.id for r in fresh)
                 streak.add(r.id for r in rows)
-                jobs += [self.job(r.id, r.title, BASE + r.path, r.places) for r in fresh]
+                jobs += [
+                    self.job(r.id, r.title, BASE + r.path, r.places) for r in fresh
+                ]
                 if streak.done:
                     break
         return jobs

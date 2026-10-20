@@ -1,16 +1,18 @@
 {
   "ats": {
     "greenhouse": {
-      "HubSpot": {"board_token": "hubspotjobs"}
+      "HubSpot": { "board_token": "hubspotjobs" }
     },
     "ashby": {
-      "Snowflake": {"board_name": "snowflake"}
+      "Snowflake": { "board_name": "snowflake" }
     },
     "smartrecruiters": {
-      "ServiceNow": {"company_identifier": "ServiceNow"}
+      "ServiceNow": { "company_identifier": "ServiceNow" }
     },
     "workday": {
-      "Gartner": {"portal": "https://gartner.wd5.myworkdayjobs.com/wday/cxs/gartner/EXT/jobs"}
+      "Gartner": {
+        "portal": "https://gartner.wd5.myworkdayjobs.com/wday/cxs/gartner/EXT/jobs"
+      }
     },
     "docusign": {
       "Docusign": {
@@ -25,10 +27,7 @@
       }
     },
     "ibm": {
-      "IBM": {"country": "United States"}
-    },
-    "apple": {
-      "Apple": {}
+      "IBM": { "country": "United States" }
     }
   }
 }

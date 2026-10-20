@@ -39,9 +39,13 @@ class Adapter(ABC):
             ats_job_id=str(job_id),
             title=title.strip(),
             url=url,
-            locations=list(dict.fromkeys(p for p in locations if p)),  # dedupe, keep order
+            locations=list(
+                dict.fromkeys(p for p in locations if p)
+            ),  # dedupe, keep order
             posted=posted,
         )
 
     @abstractmethod
-    async def fetch_jobs(self, client: httpx.AsyncClient, known: Set[str]) -> list[Job]: ...
+    async def fetch_jobs(
+        self, client: httpx.AsyncClient, known: Set[str]
+    ) -> list[Job]: ...
