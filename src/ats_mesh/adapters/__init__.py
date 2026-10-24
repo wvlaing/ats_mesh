@@ -6,6 +6,7 @@ from ats_mesh.adapters.bespoke.docusign import Docusign
 from ats_mesh.adapters.bespoke.ey import Ey
 from ats_mesh.adapters.bespoke.ibm import IBM
 from ats_mesh.adapters.bespoke.kpmg import Kpmg
+from ats_mesh.adapters.bespoke.slalom import Slalom
 from ats_mesh.adapters.greenhouse import Greenhouse
 from ats_mesh.adapters.lever import Lever
 from ats_mesh.adapters.oracle import Oracle
@@ -24,6 +25,7 @@ ADAPTERS: dict[str, type[Adapter]] = {
     "docusign": Docusign,
     "ey": Ey,
     "kpmg": Kpmg,
+    "slalom": Slalom,
     "ibm": IBM,
     "apple": Apple,
 }
