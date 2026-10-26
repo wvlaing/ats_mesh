@@ -9,8 +9,9 @@ XLSX_FILE: Path = Path.home() / "Desktop" / "jobs.xlsx"
 
 # Jobs older than this are dropped from the sheet. Age is days since posted, or
 # since we first saw the job when the site gives no date.
-MAX_AGE_DAYS = 7
-
 # Adapters that read newest-first stop paging once they pass this age (a week of
 # buffer on top of MAX_AGE_DAYS).
-CUTOFF_DAYS: Literal[14] = MAX_AGE_DAYS + 7
+
+MAX_AGE_DAYS = 7
+BUFFER = 7
+CUTOFF_DAYS = BUFFER + MAX_AGE_DAYS
