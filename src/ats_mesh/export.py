@@ -7,11 +7,13 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from ats_mesh.dates import today
 from ats_mesh.models import Job
 
 COLUMNS: list[str] = ["ats", "company_name", "title", "posted", "locations", "url"]
 WIDTHS: list[int] = [12, 25, 70, 14, 40, 50]
 FONT = "Arial"
+GREY = "A6A6A6"
 
 
 def posted_on(job: Job) -> str:
@@ -63,15 +65,21 @@ def sort_by_posted(ws: Worksheet, posted_col: int) -> None:
             cell.value = value  # pyright: ignore[reportAttributeAccessIssue]
 
 
-def style_row(ws: Worksheet, row: int, url_col: int, ncols: int) -> None:
+def style_row(
+    ws: Worksheet, row: int, url_col: int, posted_col: int | None, ncols: int
+) -> None:
+    posted = str(ws.cell(row=row, column=posted_col).value) if posted_col else None
+    old = posted is not None and posted != today().isoformat()
+    color = GREY if old else None
+
     for col in range(1, ncols + 1):
         cell = ws.cell(row=row, column=col)
-        cell.font = Font(name=FONT)
+        cell.font = Font(name=FONT, color=color)
         cell.alignment = Alignment(vertical="top")
     link = ws.cell(row=row, column=url_col)
     if isinstance(link, Cell) and str(object=link.value).startswith("http"):
         link.hyperlink = str(object=link.value)
-        link.font = Font(name=FONT, color="0563C1", underline="single")
+        link.font = Font(name=FONT, color=color or "0563C1", underline="single")
 
 
 def sync(path: Path, added: list[Job], removed: list[Job]) -> None:
@@ -111,8 +119,9 @@ def sync(path: Path, added: list[Job], removed: list[Job]) -> None:
     if "posted" in header:
         sort_by_posted(ws, header.index("posted") + 1)
 
+    posted_col = header.index("posted") + 1 if "posted" in header else None
     for row in range(2, ws.max_row + 1):
-        style_row(ws, row, url_col, ws.max_column)
+        style_row(ws, row, url_col, posted_col, ws.max_column)
     ws.auto_filter.ref = ws.dimensions
     wb.save(filename=path)
     print(f"Excel: +{appended} / -{deleted} rows in {path.name}")
