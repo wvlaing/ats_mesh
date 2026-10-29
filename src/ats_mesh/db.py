@@ -44,8 +44,10 @@ def add_jobs(con: sqlite3.Connection, jobs: list[Job]) -> None:
     'Posted 30+ Days Ago'."""
     seen = timestamp()
     con.executemany(
-        "INSERT OR IGNORE INTO jobs (company_name, ats_job_id, ats, title, url,"
-        " locations, posted, first_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO jobs (company_name, ats_job_id, ats, title, url, locations, posted, first_seen)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        " ON CONFLICT(company_name, ats_job_id) DO UPDATE SET posted = excluded.posted"
+        " WHERE excluded.posted > jobs.posted",
         [
             (
                 j.company_name,

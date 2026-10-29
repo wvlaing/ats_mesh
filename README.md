@@ -19,3 +19,7 @@ https://www.nagarro.com/en/careers/us
 
 
 https://careers.epam.com/en/jobs/united_states_of_america?vacancy_type=remote
+
+https://careers.chewy.com/us/en/apply?jobSeqNo=CHINUSR30723EXTERNALENUS&step=1&stepname=personalInformation
+
+https://www.tanium.com/careers?category=internships

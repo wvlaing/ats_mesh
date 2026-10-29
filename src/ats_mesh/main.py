@@ -31,11 +31,10 @@ async def fetch_company(
     except FETCH_ERRORS as e:
         print(f"{name}: failed ({e!r})")
         return []
-    new: list[Job] = list(
-        {j.ats_job_id: j for j in jobs if j.ats_job_id not in known}.values()
-    )
-    if new:
-        print(f"{name}: {len(new)} new")
+    new = list({j.ats_job_id: j for j in jobs}.values())
+    fresh = [j for j in new if j.ats_job_id not in known]
+    if fresh:
+        print(f"{name}: {len(fresh)} new")
     return new
 
 
