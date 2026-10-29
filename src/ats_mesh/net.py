@@ -17,6 +17,7 @@ EXTRA_PAGES = 2  # known-only pages to look at after the first one, before stopp
 
 class RequestOptions(TypedDict, total=False):
     params: dict[str, str | int]
+    headers: dict[str, str]
     json: Raw
     timeout: float
 
@@ -76,7 +77,7 @@ async def walk[T](
     Use it as `async with aclosing(walk(...)) as pages`, so a page requested
     ahead is cancelled when the caller stops early.
     """
-    pending = asyncio.create_task(fetch(start))  # ty: ignore[invalid-argument-type]
+    pending = asyncio.create_task(fetch(start))  # pyright: ignore[reportArgumentType]
     try:
         for page in range(start, start + limit):
             try:
@@ -85,7 +86,7 @@ async def walk[T](
                 if page == start:
                     raise
                 return
-            pending = asyncio.create_task(coro=fetch(page + 1))  # ty: ignore[invalid-argument-type]
+            pending = asyncio.create_task(coro=fetch(page + 1))  # pyright: ignore[reportArgumentType]
             yield result
     finally:
         pending.cancel()
@@ -101,7 +102,7 @@ class Streak:
         self.extra: int = extra
         self.run = 0
 
-    def add(self, ids: Iterable[str]) -> None:
+    def add(self, ids: Iterable[str]) -> None:  # type: ignore
         ids: list[str] = list(ids)
         if not ids:
             return  # an empty or failed page says nothing, don't count it

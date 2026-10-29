@@ -10,6 +10,7 @@ from ats_mesh.adapters.bespoke.slalom import Slalom
 from ats_mesh.adapters.greenhouse import Greenhouse
 from ats_mesh.adapters.lever import Lever
 from ats_mesh.adapters.oracle import Oracle
+from ats_mesh.adapters.phenom import Phenom
 from ats_mesh.adapters.smartrecruiters import SmartRecruiters
 from ats_mesh.adapters.workday import Workday
 
@@ -22,6 +23,7 @@ ADAPTERS: dict[str, type[Adapter]] = {
     "oracle": Oracle,
     "smartrecruiters": SmartRecruiters,
     "atlassian": Atlassian,
+    "phenom": Phenom,
     "docusign": Docusign,
     "ey": Ey,
     "kpmg": Kpmg,
