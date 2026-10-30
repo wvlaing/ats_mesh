@@ -1,9 +1,11 @@
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.cell import Cell
 from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles.colors import Color
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -14,6 +16,9 @@ COLUMNS: list[str] = ["ats", "company_name", "title", "posted", "locations", "ur
 WIDTHS: list[int] = [12, 25, 70, 14, 40, 50]
 FONT = "Arial"
 GREY = "A6A6A6"
+LINK_BLUE = "0563C1"
+TODAY = Color(theme=1)  # Black, Text 1
+YESTERDAY = Color(theme=1, tint=0.25)  # Black, Text 1, Lighter 25%
 
 
 def posted_on(job: Job) -> str:
@@ -65,12 +70,24 @@ def sort_by_posted(ws: Worksheet, posted_col: int) -> None:
             cell.value = value  # pyright: ignore[reportAttributeAccessIssue]
 
 
+def age_color(posted: str | None) -> Color | str | None:
+    """Today: black. Yesterday: black lightened 25%. Older: grey."""
+    try:
+        age = (today() - date.fromisoformat(str(posted)[:10])).days
+    except ValueError:
+        return None  # no usable date: leave default
+    if age <= 0:
+        return TODAY
+    if age == 1:
+        return YESTERDAY
+    return GREY
+
+
 def style_row(
     ws: Worksheet, row: int, url_col: int, posted_col: int | None, ncols: int
 ) -> None:
     posted = str(ws.cell(row=row, column=posted_col).value) if posted_col else None
-    old = posted is not None and posted != today().isoformat()
-    color = GREY if old else None
+    color = age_color(posted)
 
     for col in range(1, ncols + 1):
         cell = ws.cell(row=row, column=col)
@@ -79,7 +96,9 @@ def style_row(
     link = ws.cell(row=row, column=url_col)
     if isinstance(link, Cell) and str(object=link.value).startswith("http"):
         link.hyperlink = str(object=link.value)
-        link.font = Font(name=FONT, color=color or "0563C1", underline="single")
+        # today's (and undated) links stay blue so they still look like links
+        link_color = LINK_BLUE if color is None or color is TODAY else color
+        link.font = Font(name=FONT, color=link_color, underline="single")
 
 
 def sync(path: Path, added: list[Job], removed: list[Job]) -> None:
